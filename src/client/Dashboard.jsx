@@ -5,7 +5,7 @@ import WeatherForecast from './WeatherForecast';
 const BELGRADE_LAT = parseFloat(import.meta.env.VITE_BELGRADE_LAT) || 44.80061806793066;
 const BELGRADE_LON = parseFloat(import.meta.env.VITE_BELGRADE_LON) || 20.487323625685637;
 const SEARCH_RAD = parseInt(import.meta.env.VITE_SEARCH_RAD, 10) || 400;
-const SERVER_IP = import.meta.env.VITE_SERVER || 'localhost'
+const SERVER_IP = import.meta.env.VITE_SERVER || '192.168.50.5'
 
 const formatMinutes = (seconds) => {
   const minutes = Math.ceil(seconds / 60);
