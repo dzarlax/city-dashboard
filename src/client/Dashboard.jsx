@@ -128,24 +128,39 @@ const TransitDashboard = () => {
   const fetchStops = async () => {
     try {
       setError(null);
-      const params = new URLSearchParams({
-        lat: userLocation.lat,
-        lon: userLocation.lon,
-        rad: SEARCH_RAD,
-      });
-      const response = await fetch(`${SERVER_IP}/api/stations/bg/all?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch stations');
+      setLoading(true);
+  
+      const cities = ['bg', 'ns', 'nis']; // Список городов: Белград, Нови-Сад, Ниш
+      const allStops = [];
+  
+      for (const city of cities) {
+        const params = new URLSearchParams({
+          lat: userLocation.lat,
+          lon: userLocation.lon,
+          rad: SEARCH_RAD,
+        });
+  
+        const response = await fetch(`${SERVER_IP}/api/stations/${city}/all?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch stations for city ${city.toUpperCase()}`);
+        }
+  
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+          throw new Error(`Invalid response format for city ${city.toUpperCase()}`);
+        }
+  
+        // Обработать данные и добавить их в общий список
+        const processedStops = data.map((station) => ({
+          ...station,
+          distance: `${Math.round(station.distance)}m`,
+          city: city.toUpperCase(), // Добавить информацию о городе
+        }));
+        allStops.push(...processedStops);
       }
-      const data = await response.json();
-      if (!Array.isArray(data)) {
-        throw new Error('Invalid response format');
-      }
-      const processedStops = data.map((station) => ({
-        ...station,
-        distance: `${Math.round(station.distance)}m`,
-      }));
-      setStops(processedStops);
+  
+      // Установить общий список остановок
+      setStops(allStops);
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Error fetching stops:', err);
