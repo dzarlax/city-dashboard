@@ -10,7 +10,7 @@
     "build:server": "cp -R src/server dist/server",
     "build": "npm run build:client && npm run build:server",
     "start": "concurrently \"npm run start:client\" \"npm run start:server\"",
-    "start:client": "vite preview --host",
+    "start:client": "vite preview --host --port 3000",
     "start:server": "node dist/server/index.js"
   },
   "dependencies": {

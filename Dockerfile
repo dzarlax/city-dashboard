@@ -24,7 +24,7 @@ COPY package*.json ./
 RUN npm install --production
 
 # Указание портов
-EXPOSE 3001 4173
+EXPOSE 3001 3000
 
 # Запуск сервера и клиента
 CMD ["npx", "concurrently", "npm run start:client", "npm run start:server"]

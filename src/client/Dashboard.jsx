@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Bus, Bike, Repeat2 } from 'lucide-react';
+import { MapPin, Bus, Repeat2 } from 'lucide-react';
 import WeatherForecast from './WeatherForecast';
 
-const BELGRADE_LAT = parseFloat(import.meta.env.VITE_BELGRADE_LAT) || 44.80061806793066;
-const BELGRADE_LON = parseFloat(import.meta.env.VITE_BELGRADE_LON) || 20.487323625685637;
-const SEARCH_RAD = parseInt(import.meta.env.VITE_SEARCH_RAD, 10) || 400;
-const SERVER_IP = import.meta.env.VITE_SERVER || '192.168.50.5'
+const BELGRADE_LAT = parseFloat(import.meta.env.VITE_BELGRADE_LAT);
+const BELGRADE_LON = parseFloat(import.meta.env.VITE_BELGRADE_LON);
+const SEARCH_RAD = parseInt(import.meta.env.VITE_SEARCH_RAD, 10);
+const SERVER_IP = import.meta.env.VITE_SERVER
+const DEFAULT_LOCATION = { lat: BELGRADE_LAT, lon: BELGRADE_LON }; // Координаты Белграда
+
+
 
 const formatMinutes = (seconds) => {
   const minutes = Math.ceil(seconds / 60);
@@ -15,7 +18,6 @@ const formatMinutes = (seconds) => {
 const BusStation = ({ name, distance, stopId, vehicles = [] }) => {
   const groupedVehicles = vehicles.reduce((acc, vehicle) => {
     const directionKey = `${stopId}-${vehicle.lineNumber}-${vehicle.lineName || 'unknown'}-${vehicle.stationName || ''}`;
-
     if (!acc[directionKey]) {
       acc[directionKey] = {
         lineNumber: vehicle.lineNumber,
@@ -24,13 +26,11 @@ const BusStation = ({ name, distance, stopId, vehicles = [] }) => {
         arrivals: [],
       };
     }
-
     acc[directionKey].arrivals.push({
       secondsLeft: vehicle.secondsLeft,
       stationsBetween: vehicle.stationsBetween,
       garageNo: vehicle.garageNo,
     });
-
     return acc;
   }, {});
 
@@ -97,22 +97,43 @@ const TransitDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [userLocation, setUserLocation] = useState(DEFAULT_LOCATION);
 
   useEffect(() => {
-    fetchStops();
-    const interval = setInterval(fetchStops, 10000);
-    return () => clearInterval(interval);
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lon: longitude });
+          setError(null); // Очистить ошибку, если местоположение получено успешно
+        },
+        (err) => {
+          console.error("Error fetching location:", err.message);
+          setError("Unable to fetch your location. Using default location.");
+        }
+      );
+    } else {
+      setError("Geolocation is not supported by your browser. Using default location.");
+    }
   }, []);
+
+  useEffect(() => {
+    if (userLocation) {
+      fetchStops();
+      const interval = setInterval(fetchStops, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [userLocation]);
 
   const fetchStops = async () => {
     try {
       setError(null);
       const params = new URLSearchParams({
-        lat: BELGRADE_LAT,
-        lon: BELGRADE_LON,
+        lat: userLocation.lat,
+        lon: userLocation.lon,
         rad: SEARCH_RAD,
       });
-      const response = await fetch(`http://${SERVER_IP}:3001/api/stations/bg/all?${params.toString()}`);
+      const response = await fetch(`${SERVER_IP}/api/stations/bg/all?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch stations');
       }
@@ -134,26 +155,22 @@ const TransitDashboard = () => {
     }
   };
 
+  if (!userLocation) {
+    return <div>Fetching your location...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 lg:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
-       
-               {/* Header */}
-               <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <div className="p-5 flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="bg-blue-50 p-3 rounded-full">
                 <MapPin className="w-6 h-6 text-blue-500" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-800">Belgrade Bus Stations</h2>
+                <h2 className="text-2xl font-bold text-gray-800">Nearby Bus Stops</h2>
                 <p className="text-sm text-gray-500">Real-time public transport information</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  <strong>Location:</strong> {BELGRADE_LAT.toFixed(5)}, {BELGRADE_LON.toFixed(5)}
-                </p>
-                <p className="text-sm text-gray-500">
-                  <strong>Radius:</strong> {SEARCH_RAD} m
-                </p>
               </div>
             </div>
             <button
@@ -167,17 +184,14 @@ const TransitDashboard = () => {
           </div>
         </div>
 
-        {/* Last Updated */}
         {lastUpdated && (
           <div className="text-sm text-gray-500 text-center">
             Last updated: {lastUpdated.toLocaleTimeString()}
           </div>
         )}
 
-        {/* Почасовой прогноз погоды */}
-        <WeatherForecast lat={BELGRADE_LAT} lon={BELGRADE_LON} />
+        <WeatherForecast lat={userLocation.lat} lon={userLocation.lon} />
 
-        {/* Stops List */}
         <div className="space-y-6">
           {loading ? (
             <LoadingSpinner />
