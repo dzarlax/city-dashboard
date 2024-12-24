@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Bus, Repeat2 } from 'lucide-react';
 import WeatherForecast from './WeatherForecast';
 
-const SERVER_IP = import.meta.env.VITE_SERVER
+const SERVER_IP = "https://transport-api.dzarlax.dev"
 
 
 
