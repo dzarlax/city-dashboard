@@ -4,7 +4,7 @@
 export function register() {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        const swUrl = `https://transport-api.dzarlax.dev/service-worker.js`;
+        const swUrl = `https://transport.dzarlax.dev/service-worker.js`;
         navigator.serviceWorker
           .register(swUrl)
           .then((registration) => {
