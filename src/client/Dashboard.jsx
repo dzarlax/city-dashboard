@@ -268,64 +268,89 @@ const TransitDashboard = () => {
     return <div className="text-center p-4">Fetching your location...</div>;
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 lg:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="p-5 flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="bg-blue-50 p-3 rounded-full">
-                <MapPin className="w-6 h-6 text-blue-500" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">Nearby Bus Stops</h2>
-                <p className="text-sm text-gray-500">Real-time public transport information</p>
-              </div>
+// Replace the return statement in TransitDashboard with this:
+
+return (
+  <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-4 lg:p-6">
+    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+      {/* Header Section */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="p-3 sm:p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="bg-blue-50 p-2 rounded-lg">
+              <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
             </div>
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-800 leading-tight">
+                Nearby Stops
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">
+                Real-time transport info
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {lastUpdated && (
+              <p className="text-xs text-gray-500 hidden sm:block">
+                Updated: {lastUpdated.toLocaleTimeString([], { 
+                  hour: '2-digit', 
+                  minute: '2-digit'
+                })}
+              </p>
+            )}
             <button
               onClick={refresh}
               disabled={loading}
-              className="flex items-center space-x-2 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1.5 sm:px-3 sm:py-2 rounded-md transition-colors disabled:opacity-50 text-sm"
             >
-              <Repeat2 className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
+              <Repeat2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </div>
+      </div>
 
-        {lastUpdated && (
-          <div className="text-sm text-gray-500 text-center">
-            Last updated: {lastUpdated.toLocaleTimeString()}
-          </div>
-        )}
+      {/* Mobile Last Updated */}
+      {lastUpdated && (
+        <div className="text-xs text-gray-500 text-center sm:hidden">
+          Updated: {lastUpdated.toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit'
+          })}
+        </div>
+      )}
 
+      {/* Weather Widget */}
         <WeatherForecast lat={userLocation.lat} lon={userLocation.lon} />
 
-        <div className="space-y-6">
-          {loading ? (
-            <LoadingSpinner />
-          ) : error ? (
-            <div className="text-center bg-white border border-red-200 rounded-xl p-8 shadow-sm">
-              <p className="text-red-500 text-lg font-medium">{error}</p>
-            </div>
-          ) : stops.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {stops.map((stop) => (
-                <BusStation 
-                  key={`${stop.stopId}-${stop.city}`} 
-                  {...stop} 
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
-              <p className="text-gray-500 text-lg font-medium">No bus stops found</p>
-            </div>
-          )}
-        </div>
+      {/* Main Content Area */}
+      <div className="space-y-4 sm:space-y-6">
+        {loading ? (
+          <LoadingSpinner />
+        ) : error ? (
+          <div className="text-center bg-white border border-red-200 rounded-lg p-4 sm:p-6 shadow-sm">
+            <p className="text-red-500 text-sm sm:text-base font-medium">{error}</p>
+          </div>
+        ) : stops.length > 0 ? (
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {stops.map((stop) => (
+              <BusStation 
+                key={`${stop.stopId}-${stop.city}`} 
+                {...stop} 
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center bg-white border border-gray-200 rounded-lg p-4 sm:p-6 shadow-sm">
+            <p className="text-gray-500 text-sm sm:text-base font-medium">
+              No bus stops found
+            </p>
+          </div>
+        )}
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default TransitDashboard;
