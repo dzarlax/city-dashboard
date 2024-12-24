@@ -4,13 +4,13 @@ import WeatherForecast from './WeatherForecast';
 
 const SERVER_IP = "https://transport-api.dzarlax.dev";
 
+const roundCoordinate = (coord, precision = 4) => {
+  return parseFloat(coord.toFixed(precision));
+};
+
 const formatMinutes = (seconds) => {
   const minutes = Math.ceil(seconds / 60);
   return `${minutes}min`;
-};
-
-const roundCoordinate = (coord, precision = 4) => {
-  return parseFloat(coord.toFixed(precision));
 };
 
 const BusStation = ({ name, distance, stopId, vehicles = [] }) => {
@@ -163,49 +163,46 @@ const TransitDashboard = () => {
 
   const fetchStops = async (forceUpdate = false) => {
     try {
-      if (!SERVER_IP) throw new Error('SERVER_IP is undefined or invalid');
-  
       setError(null);
-  
-      // Округляем текущие и предыдущие координаты
+
       const roundedLat = roundCoordinate(userLocation.lat);
       const roundedLon = roundCoordinate(userLocation.lon);
-      const prevRoundedLat = prevLocation ? roundCoordinate(prevLocation.lat) : null;
-      const prevRoundedLon = prevLocation ? roundCoordinate(prevLocation.lon) : null;
-  
-      // Сравниваем округлённые координаты
-      if (!forceUpdate && prevLocation && 
-          roundedLat === prevRoundedLat && 
-          roundedLon === prevRoundedLon) {
+
+      if (
+        !forceUpdate &&
+        prevLocation &&
+        roundedLat === prevLocation.lat &&
+        roundedLon === prevLocation.lon
+      ) {
         console.log("Location hasn't changed significantly. Fetching only transport updates...");
         await fetchTransport();
         return;
       }
-  
+
       setUpdating(true);
-  
+
       const cities = ['bg', 'ns', 'nis'];
       const allStops = [];
-  
+
       for (const city of cities) {
         const params = new URLSearchParams({
           lat: userLocation.lat,
           lon: userLocation.lon,
           rad: config.searchRad,
         });
-  
+
         const url = `${SERVER_IP}/api/stations/${city}/all?${params.toString()}`;
-  
+
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`Failed to fetch stations for city ${city.toUpperCase()}`);
         }
-  
+
         const data = await response.json();
         if (!Array.isArray(data)) {
           throw new Error(`Invalid response format for city ${city.toUpperCase()}`);
         }
-  
+
         const processedStops = data.map((station) => ({
           ...station,
           distance: `${Math.round(station.distance)}m`,
@@ -213,13 +210,13 @@ const TransitDashboard = () => {
         }));
         allStops.push(...processedStops);
       }
-  
+
       setStops(allStops);
-      setPrevLocation({ lat: roundedLat, lon: roundedLon }); // Сохраняем округлённые координаты
+      setPrevLocation({ lat: roundedLat, lon: roundedLon });
       setLastUpdated(new Date());
     } catch (err) {
-      console.error('Error fetching stops:', err);
-      setError(err.message || 'Failed to load stations');
+      console.error('Error fetching stops:', err.message);
+      setError(`Failed to fetch stops: ${err.message}`);
     } finally {
       setLoading(false);
       setUpdating(false);
@@ -229,45 +226,42 @@ const TransitDashboard = () => {
   const fetchTransport = async () => {
     try {
       setError(null);
-  
+
       const cities = ['bg', 'ns', 'nis'];
       const allStops = [];
-  
+
       for (const city of cities) {
         const params = new URLSearchParams({
           lat: userLocation.lat,
           lon: userLocation.lon,
           rad: config.searchRad,
         });
-  
+
         const url = `${SERVER_IP}/api/transport/${city}/updates?${params.toString()}`;
-  
-        // Используем fetchWithRetry
-        const data = await fetchWithRetry(url);
-  
-        if (!Array.isArray(data)) {
-          throw new Error(`Invalid response format for transport updates: ${JSON.stringify(data)}`);
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch transport updates for city ${city.toUpperCase()}`);
         }
-  
+
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+          throw new Error(`Invalid response format for transport updates`);
+        }
+
         const updatedStops = stops.map((stop) => {
           const updatedVehicles = data.filter((vehicle) => vehicle.stopId === stop.stopId);
           return { ...stop, vehicles: updatedVehicles };
         });
-  
+
         allStops.push(...updatedStops);
       }
-  
+
       setStops(allStops);
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Error fetching transport updates:', err.message);
-      if (err.message.includes('NetworkError')) {
-        setError('Network issue detected. Please check your internet connection.');
-      } else if (err.message.includes('timed out')) {
-        setError('Server is taking too long to respond. Please try again later.');
-      } else {
-        setError('Failed to update transport information. Please try again.');
-      }
+      setError('Failed to update transport');
     }
   };
 
