@@ -1,27 +1,21 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { MapPin, Bus, Repeat2 } from 'lucide-react';
 import WeatherForecast from './WeatherForecast';
 
 const SERVER_IP = "https://transport-api.dzarlax.dev";
 
-// Custom debounce implementation
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-
+// Utility functions
 const formatMinutes = (seconds) => {
   const minutes = Math.ceil(seconds / 60);
   return `${minutes}min`;
 };
 
+const isVehicleChanged = (oldVehicle, newVehicle) => {
+  return oldVehicle.secondsLeft !== newVehicle.secondsLeft ||
+         oldVehicle.stationsBetween !== newVehicle.stationsBetween;
+};
+
+// UI Components remain the same
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center py-12">
     <div className="relative">
@@ -31,7 +25,8 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const BusStation = React.memo(({ name, distance, stopId, vehicles = [] }) => {
+// Memoized BusStation component
+const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city }) => {
   const groupedVehicles = useMemo(() => {
     return vehicles.reduce((acc, vehicle) => {
       const directionKey = `${stopId}-${vehicle.lineNumber}-${vehicle.lineName || 'unknown'}-${vehicle.stationName || ''}`;
@@ -104,24 +99,32 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [] }) => {
       </div>
     </div>
   );
+}, (prevProps, nextProps) => {
+  if (prevProps.vehicles.length !== nextProps.vehicles.length) return false;
+  return prevProps.vehicles.every((vehicle, index) => {
+    const nextVehicle = nextProps.vehicles[index];
+    return !isVehicleChanged(vehicle, nextVehicle);
+  });
 });
 
+// Modified transit data hook with correct state management
 const useTransitData = (userLocation, config) => {
-  const [state, setState] = useState({
-    stops: [],
-    loading: true,
-    error: null,
-    lastUpdated: null
-  });
+  const [stationsMap, setStationsMap] = useState(new Map());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const previousVehicles = useRef(new Map());
 
   const fetchStops = useCallback(async () => {
     if (!userLocation || !config.searchRad) return;
 
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      
       const cities = ['bg', 'ns', 'nis'];
-      const fetchPromises = cities.map(async city => {
+      let hasUpdates = false;
+
+      const newStationsData = new Map();
+      
+      await Promise.all(cities.map(async city => {
         const params = new URLSearchParams({
           lat: userLocation.lat,
           lon: userLocation.lon,
@@ -137,36 +140,46 @@ const useTransitData = (userLocation, config) => {
         }
 
         const data = await response.json();
-        return data.map(station => ({
-          ...station,
-          distance: `${Math.round(station.distance)}m`,
-          city: city.toUpperCase(),
-        }));
-      });
+        
+        data.forEach(station => {
+          const stationKey = `${station.stopId}-${city}`;
+          const processedStation = {
+            ...station,
+            distance: `${Math.round(station.distance)}m`,
+            city: city.toUpperCase(),
+          };
 
-      const results = await Promise.all(fetchPromises);
-      const allStops = results.flat();
+          // Check if vehicles have changed
+          const prevVehiclesForStation = previousVehicles.current.get(stationKey) || [];
+          const vehiclesChanged = !prevVehiclesForStation.length || 
+            processedStation.vehicles.some((vehicle, idx) => {
+              const prevVehicle = prevVehiclesForStation[idx];
+              return !prevVehicle || isVehicleChanged(prevVehicle, vehicle);
+            });
 
-      setState(prev => ({
-        ...prev,
-        stops: allStops,
-        lastUpdated: new Date(),
-        loading: false,
-        error: null
+          if (vehiclesChanged) {
+            hasUpdates = true;
+            previousVehicles.current.set(stationKey, [...processedStation.vehicles]);
+          }
+
+          newStationsData.set(stationKey, processedStation);
+        });
       }));
+
+      // Update stations map
+      setStationsMap(newStationsData);
+      
+      if (hasUpdates) {
+        setLastUpdated(new Date());
+      }
+      
+      setLoading(false);
+      setError(null);
     } catch (err) {
-      setState(prev => ({
-        ...prev,
-        error: err.message || 'Failed to load stations',
-        loading: false
-      }));
+      setError(err.message || 'Failed to load stations');
+      setLoading(false);
     }
   }, [userLocation, config.searchRad]);
-
-  const debouncedFetch = useMemo(() => 
-    debounce(fetchStops, 1000),
-    [fetchStops]
-  );
 
   useEffect(() => {
     if (userLocation) {
@@ -174,20 +187,21 @@ const useTransitData = (userLocation, config) => {
       const interval = setInterval(fetchStops, 10000);
       return () => {
         clearInterval(interval);
-        // Clean up debounced function
-        if (debouncedFetch.cancel) {
-          debouncedFetch.cancel();
-        }
+        previousVehicles.current.clear();
       };
     }
-  }, [userLocation, fetchStops, debouncedFetch]);
+  }, [userLocation, fetchStops]);
 
   return {
-    ...state,
-    refresh: debouncedFetch
+    stops: Array.from(stationsMap.values()),
+    loading,
+    error,
+    lastUpdated,
+    refresh: fetchStops
   };
 };
 
+// Initial setup hook remains the same
 const useInitialSetup = () => {
   const [state, setState] = useState({
     userLocation: null,
@@ -197,7 +211,6 @@ const useInitialSetup = () => {
 
   useEffect(() => {
     const setupPromises = [
-      // Fetch config
       fetch(`${SERVER_IP}/api/env`)
         .then(response => response.json())
         .then(data => {
@@ -208,7 +221,6 @@ const useInitialSetup = () => {
             searchRad: parseInt(SEARCH_RAD, 10)
           };
         }),
-      // Get geolocation
       new Promise((resolve, reject) => {
         if ("geolocation" in navigator) {
           navigator.geolocation.getCurrentPosition(
@@ -298,8 +310,11 @@ const TransitDashboard = () => {
             </div>
           ) : stops.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {stops.map((stop, index) => (
-                <BusStation key={index} {...stop} />
+              {stops.map((stop) => (
+                <BusStation 
+                  key={`${stop.stopId}-${stop.city}`} 
+                  {...stop} 
+                />
               ))}
             </div>
           ) : (
