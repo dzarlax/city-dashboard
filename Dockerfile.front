@@ -3,10 +3,6 @@ FROM node:20 AS frontend-builder
 
 WORKDIR /app
 
-# Указываем аргумент для передачи переменной окружения
-ARG VITE_SERVER
-ENV VITE_SERVER=$VITE_SERVER
-
 # Установите зависимости
 COPY package*.json ./
 RUN npm install
@@ -18,9 +14,6 @@ COPY index.html ./
 COPY tailwind.config.js ./
 COPY postcss.config.js ./
 COPY dash.svg ./
-
-# Логируем значение переменной VITE_SERVER для проверки
-RUN echo "Building with VITE_SERVER=${VITE_SERVER}"
 
 # Выполняем сборку
 RUN npm run build
