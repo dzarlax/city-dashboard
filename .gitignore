@@ -26,3 +26,7 @@ dist-ssr
 docker-compose.yml
 city-dashboard.tar
 package-lock.json
+docker-compose.yaml
+Archive/server/apikeys.json
+src/server_go/apikeys.json
+Archive/docker-compose.yml_old

@@ -2,11 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Bus, Repeat2 } from 'lucide-react';
 import WeatherForecast from './WeatherForecast';
 
-const BELGRADE_LAT = parseFloat(import.meta.env.VITE_BELGRADE_LAT);
-const BELGRADE_LON = parseFloat(import.meta.env.VITE_BELGRADE_LON);
-const SEARCH_RAD = parseInt(import.meta.env.VITE_SEARCH_RAD, 10);
 const SERVER_IP = import.meta.env.VITE_SERVER
-const DEFAULT_LOCATION = { lat: BELGRADE_LAT, lon: BELGRADE_LON }; // Координаты Белграда
 
 
 
@@ -44,7 +40,9 @@ const BusStation = ({ name, distance, stopId, vehicles = [] }) => {
         <div className="flex justify-between items-center mb-2">
           <div className="flex items-center space-x-2">
             <Bus className="w-5 h-5 text-blue-500 opacity-70 group-hover:opacity-100 transition-opacity" />
-            <h3 className="text-base font-medium text-gray-800">{name}</h3>
+            <h3 className="text-base font-medium text-gray-800">
+              {name} <span className="text-gray-500 text-sm">(# {stopId})</span>
+            </h3>
           </div>
           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
             {distance}
@@ -97,7 +95,44 @@ const TransitDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [userLocation, setUserLocation] = useState(DEFAULT_LOCATION);
+  const [userLocation, setUserLocation] = useState(null); // Начальные координаты
+  const [config, setConfig] = useState({
+    lat: null, // Обновятся после запроса к серверу
+    lon: null,
+    searchRad: null,
+  });
+
+  useEffect(() => {
+    // Получение конфигурации с сервера
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${SERVER_IP}/api/env`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch config');
+        }
+        const data = await response.json();
+        const { BELGRADE_LAT, BELGRADE_LON, SEARCH_RAD } = data.env;
+
+        // Устанавливаем конфигурацию
+        setConfig({
+          lat: parseFloat(BELGRADE_LAT),
+          lon: parseFloat(BELGRADE_LON),
+          searchRad: parseInt(SEARCH_RAD, 10),
+        });
+
+        // Устанавливаем начальное местоположение
+        setUserLocation({
+          lat: parseFloat(BELGRADE_LAT),
+          lon: parseFloat(BELGRADE_LON),
+        });
+      } catch (err) {
+        setError('Failed to fetch configuration');
+        console.error(err);
+      }
+    };
+
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -105,7 +140,7 @@ const TransitDashboard = () => {
         (position) => {
           const { latitude, longitude } = position.coords;
           setUserLocation({ lat: latitude, lon: longitude });
-          setError(null); // Очистить ошибку, если местоположение получено успешно
+          setError(null); // Успешное обновление местоположения
         },
         (err) => {
           console.error("Error fetching location:", err.message);
@@ -127,39 +162,49 @@ const TransitDashboard = () => {
 
   const fetchStops = async () => {
     try {
+      if (!SERVER_IP) throw new Error('SERVER_IP is undefined or invalid');
+    
       setError(null);
       setLoading(true);
-  
-      const cities = ['bg', 'ns', 'nis']; // Список городов: Белград, Нови-Сад, Ниш
+    
+      const cities = ['bg', 'ns', 'nis'];
       const allStops = [];
-  
+    
       for (const city of cities) {
         const params = new URLSearchParams({
           lat: userLocation.lat,
           lon: userLocation.lon,
-          rad: SEARCH_RAD,
+          rad: config.searchRad, // Используем данные из конфигурации
         });
-  
-        const response = await fetch(`${SERVER_IP}/api/stations/${city}/all?${params.toString()}`);
+    
+        const url = `${SERVER_IP}/api/stations/${city}/all?${params.toString()}`;
+    
+        const response = await fetch(url);
+        const contentType = response.headers.get('content-type');
         if (!response.ok) {
+          console.error(`Error fetching data: ${response.status} ${response.statusText}`);
           throw new Error(`Failed to fetch stations for city ${city.toUpperCase()}`);
+        }
+  
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('Unexpected response format:', contentType);
+          console.error('Raw Response:', await response.text());
+          throw new Error(`Server returned unexpected content type for city ${city.toUpperCase()}`);
         }
   
         const data = await response.json();
         if (!Array.isArray(data)) {
           throw new Error(`Invalid response format for city ${city.toUpperCase()}`);
         }
-  
-        // Обработать данные и добавить их в общий список
+    
         const processedStops = data.map((station) => ({
           ...station,
           distance: `${Math.round(station.distance)}m`,
-          city: city.toUpperCase(), // Добавить информацию о городе
+          city: city.toUpperCase(),
         }));
         allStops.push(...processedStops);
       }
-  
-      // Установить общий список остановок
+    
       setStops(allStops);
       setLastUpdated(new Date());
     } catch (err) {

@@ -1,17 +1,44 @@
 import React, { useState, useEffect } from 'react';
 
+// Используем адрес сервера, указанный при сборке
+const SERVER_IP = import.meta.env.VITE_SERVER;
+
 const WeatherForecast = ({ lat, lon }) => {
   const [forecast, setForecast] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [apiKey, setApiKey] = useState(null);
 
   useEffect(() => {
+    // Fetch API key from the server
+    const fetchApiKey = async () => {
+      try {
+        const response = await fetch(`${SERVER_IP}/api/env`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch API key');
+        }
+        const data = await response.json();
+        if (!data.env || !data.env.WEATHER_API_KEY) {
+          throw new Error('API key not found in the server response');
+        }
+        setApiKey(data.env.WEATHER_API_KEY);
+      } catch (err) {
+        console.error('Error fetching API key:', err);
+        setError(err.message || 'Failed to load API key');
+      }
+    };
+
+    fetchApiKey();
+  }, []);
+
+  useEffect(() => {
+    if (!apiKey) return;
+
     const fetchForecast = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const apiKey = import.meta.env.VITE_WEATHER_API_KEY; // Замените на ваш API-ключ
         const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&cnt=12&appid=${apiKey}`;
 
         const response = await fetch(url);
@@ -30,7 +57,7 @@ const WeatherForecast = ({ lat, lon }) => {
     };
 
     fetchForecast();
-  }, [lat, lon]);
+  }, [lat, lon, apiKey]);
 
   if (loading) {
     return <p>Loading weather forecast...</p>;
