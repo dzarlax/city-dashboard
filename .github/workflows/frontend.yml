@@ -24,7 +24,11 @@ jobs:
           docker cp build-container:/app/dist ./dist
           docker rm build-container
 
-      # Шаг 3: Деплой на GitHub Pages
+      # Шаг 3: Добавление CNAME файла
+      - name: Add CNAME file
+        run: echo "transport.dzarlax.dev" > ./dist/CNAME
+
+      # Шаг 4: Деплой на GitHub Pages
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
