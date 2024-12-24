@@ -4,8 +4,6 @@ import WeatherForecast from './WeatherForecast';
 
 const SERVER_IP = "https://transport-api.dzarlax.dev"
 
-
-
 const formatMinutes = (seconds) => {
   const minutes = Math.ceil(seconds / 60);
   return `${minutes}min`;
@@ -153,66 +151,71 @@ const TransitDashboard = () => {
   }, []);
 
   useEffect(() => {
-    if (userLocation) {
-      fetchStops();
-      const interval = setInterval(fetchStops, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [userLocation]);
-
-  const fetchStops = async () => {
-    try {
-      if (!SERVER_IP) throw new Error('SERVER_IP is undefined or invalid');
+    const fetchStops = async () => {
+      try {
+        if (!SERVER_IP) throw new Error('SERVER_IP is undefined or invalid');
     
-      setError(null);
-      setLoading(true);
+        setError(null);
+        setLoading(true);
     
-      const cities = ['bg', 'ns', 'nis'];
-      const allStops = [];
+        const cities = ['bg', 'ns', 'nis'];
+        const allStops = [];
     
-      for (const city of cities) {
-        const params = new URLSearchParams({
-          lat: userLocation.lat,
-          lon: userLocation.lon,
-          rad: config.searchRad, // Используем данные из конфигурации
-        });
+        for (const city of cities) {
+          const params = new URLSearchParams({
+            lat: userLocation.lat,
+            lon: userLocation.lon,
+            rad: config.searchRad, // Используем данные из конфигурации
+          });
     
-        const url = `${SERVER_IP}/api/stations/${city}/all?${params.toString()}`;
+          const url = `${SERVER_IP}/api/stations/${city}/all?${params.toString()}`;
     
-        const response = await fetch(url);
-        const contentType = response.headers.get('content-type');
-        if (!response.ok) {
-          console.error(`Error fetching data: ${response.status} ${response.statusText}`);
-          throw new Error(`Failed to fetch stations for city ${city.toUpperCase()}`);
-        }
+          const response = await fetch(url);
+          const contentType = response.headers.get('content-type');
+          if (!response.ok) {
+            console.error(`Error fetching data: ${response.status} ${response.statusText}`);
+            throw new Error(`Failed to fetch stations for city ${city.toUpperCase()}`);
+          }
   
-        if (!contentType || !contentType.includes('application/json')) {
-          console.error('Unexpected response format:', contentType);
-          console.error('Raw Response:', await response.text());
-          throw new Error(`Server returned unexpected content type for city ${city.toUpperCase()}`);
-        }
+          if (!contentType || !contentType.includes('application/json')) {
+            console.error('Unexpected response format:', contentType);
+            console.error('Raw Response:', await response.text());
+            throw new Error(`Server returned unexpected content type for city ${city.toUpperCase()}`);
+          }
   
-        const data = await response.json();
-        if (!Array.isArray(data)) {
-          throw new Error(`Invalid response format for city ${city.toUpperCase()}`);
+          const data = await response.json();
+          if (!Array.isArray(data)) {
+            throw new Error(`Invalid response format for city ${city.toUpperCase()}`);
+          }
+    
+          const processedStops = data.map((station) => ({
+            ...station,
+            distance: `${Math.round(station.distance)}m`,
+            city: city.toUpperCase(),
+          }));
+          allStops.push(...processedStops);
         }
     
-        const processedStops = data.map((station) => ({
-          ...station,
-          distance: `${Math.round(station.distance)}m`,
-          city: city.toUpperCase(),
-        }));
-        allStops.push(...processedStops);
+        setStops(allStops);
+        setLastUpdated(new Date());
+      } catch (err) {
+        console.error('Error fetching stops:', err);
+        setError(err.message || 'Failed to load stations');
+      } finally {
+        setLoading(false);
       }
-    
-      setStops(allStops);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error('Error fetching stops:', err);
-      setError(err.message || 'Failed to load stations');
-    } finally {
-      setLoading(false);
+    };
+
+    if (userLocation) {
+      fetchStops();  // Автоматическая загрузка данных при первоначальной загрузке
+      const interval = setInterval(fetchStops, 10000); // Автообновление каждые 10 секунд
+      return () => clearInterval(interval); // Очистка интервала при размонтировании компонента
     }
+  }, [userLocation, config]);
+
+  // Функция для обновления данных вручную по нажатию на кнопку
+  const handleRefresh = () => {
+    fetchStops();  // Принудительное обновление данных
   };
 
   if (!userLocation) {
@@ -233,8 +236,9 @@ const TransitDashboard = () => {
                 <p className="text-sm text-gray-500">Real-time public transport information</p>
               </div>
             </div>
+            {/* Кнопка для ручного обновления данных */}
             <button
-              onClick={fetchStops}
+              onClick={handleRefresh}
               disabled={loading}
               className="flex items-center space-x-2 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
             >
