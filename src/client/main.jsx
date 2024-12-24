@@ -9,4 +9,7 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
- 
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
+
+// Регистрируем сервис-воркер
+serviceWorkerRegistration.register();
