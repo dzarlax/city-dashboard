@@ -15,17 +15,3 @@ COPY tailwind.config.js ./
 COPY postcss.config.js ./
 COPY dash.svg ./
 RUN npm run build
-
-# Stage 2: Serve with Nginx
-FROM nginx:alpine
-
-# Copy nginx configuration (you'll need to create this)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Copy built static files from builder stage
-COPY --from=frontend-builder /app/dist /usr/share/nginx/html
-
-# Expose port 80
-EXPOSE 80
-
-# Nginx starts automatically, no need for CMD
