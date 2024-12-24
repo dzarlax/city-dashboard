@@ -18,6 +18,7 @@ jobs:
       - name: Build static files in Docker
         run: |
           echo VITE_SERVER=${{secrets.VITE_SERVER}} > ./.env
+          cat ./.env
           docker build -t frontend-builder -f Dockerfile.front .
           docker create --name build-container frontend-builder
           docker cp build-container:/app/dist ./dist
