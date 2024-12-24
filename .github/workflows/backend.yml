@@ -2,6 +2,9 @@ name: Build and Release Docker Image
 
 on:
   push:
+    paths:
+      - 'src/server_go/**' # Указываем файлы в папке src/server_go
+      - '.github/workflows/backend.yml' # Можно включить сам файл workflow для его обновления
 
 jobs:
   build:
