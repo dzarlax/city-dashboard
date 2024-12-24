@@ -17,8 +17,8 @@ jobs:
       # Шаг 2: Сборка фронтенда в Docker
       - name: Build static files in Docker
         run: |
-          echo VITE_SERVER=${{secrets.VITE_SERVER}} > ./.env
-          cat ./.env
+          echo VITE_SERVER=${{secrets.VITE_SERVER}} > .env
+          cat .env
           ls
           docker build -t frontend-builder -f Dockerfile.front .
           docker create --name build-container frontend-builder
