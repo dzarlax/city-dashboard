@@ -16,9 +16,8 @@ jobs:
 
       # Шаг 2: Сборка фронтенда в Docker
       - name: Build static files in Docker
-        env:
-          VITE_SERVER: "https://transport-api.dzarlax.dev"
         run: |
+          echo ${{secrets.VITE_SERVER}} > ./.env
           docker build -t frontend-builder -f Dockerfile.front .
           docker create --name build-container frontend-builder
           docker cp build-container:/app/dist ./dist
