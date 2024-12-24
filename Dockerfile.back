@@ -18,7 +18,6 @@ WORKDIR /app
 
 # Copy the server from the builder stage
 COPY  ./src/server_go/cmd/server/server /app/server
-COPY ./src/server_go/apikeys.json /app/apikeys.json
 
 # Expose port for backend
 EXPOSE 3001
