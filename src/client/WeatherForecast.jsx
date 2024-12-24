@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // Используем адрес сервера, указанный при сборке
-const SERVER_IP = import.meta.env.VITE_SERVER;
+const SERVER_IP = "https://transport-api.dzarlax.dev";
 
 const WeatherForecast = ({ lat, lon }) => {
   const [forecast, setForecast] = useState([]);
