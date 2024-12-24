@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Bus, Repeat2 } from 'lucide-react';
 import WeatherForecast from './WeatherForecast';
 
-const SERVER_IP = "https://transport-api.dzarlax.dev"
-
-
+const SERVER_IP = "https://transport-api.dzarlax.dev";
 
 const formatMinutes = (seconds) => {
   const minutes = Math.ceil(seconds / 60);
@@ -93,17 +91,17 @@ const LoadingSpinner = () => (
 const TransitDashboard = () => {
   const [stops, setStops] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [userLocation, setUserLocation] = useState(null); // Начальные координаты
+  const [userLocation, setUserLocation] = useState(null);
   const [config, setConfig] = useState({
-    lat: null, // Обновятся после запроса к серверу
+    lat: null,
     lon: null,
     searchRad: null,
   });
 
   useEffect(() => {
-    // Получение конфигурации с сервера
     const fetchConfig = async () => {
       try {
         const response = await fetch(`${SERVER_IP}/api/env`);
@@ -113,14 +111,12 @@ const TransitDashboard = () => {
         const data = await response.json();
         const { BELGRADE_LAT, BELGRADE_LON, SEARCH_RAD } = data.env;
 
-        // Устанавливаем конфигурацию
         setConfig({
           lat: parseFloat(BELGRADE_LAT),
           lon: parseFloat(BELGRADE_LON),
           searchRad: parseInt(SEARCH_RAD, 10),
         });
 
-        // Устанавливаем начальное местоположение
         setUserLocation({
           lat: parseFloat(BELGRADE_LAT),
           lon: parseFloat(BELGRADE_LON),
@@ -140,7 +136,7 @@ const TransitDashboard = () => {
         (position) => {
           const { latitude, longitude } = position.coords;
           setUserLocation({ lat: latitude, lon: longitude });
-          setError(null); // Успешное обновление местоположения
+          setError(null);
         },
         (err) => {
           console.error("Error fetching location:", err.message);
@@ -165,38 +161,33 @@ const TransitDashboard = () => {
       if (!SERVER_IP) throw new Error('SERVER_IP is undefined or invalid');
     
       setError(null);
-      setLoading(true);
-    
+
+      if (!loading) {
+        setUpdating(true);
+      }
+
       const cities = ['bg', 'ns', 'nis'];
       const allStops = [];
-    
+
       for (const city of cities) {
         const params = new URLSearchParams({
           lat: userLocation.lat,
           lon: userLocation.lon,
-          rad: config.searchRad, // Используем данные из конфигурации
+          rad: config.searchRad,
         });
-    
+
         const url = `${SERVER_IP}/api/stations/${city}/all?${params.toString()}`;
-    
+
         const response = await fetch(url);
-        const contentType = response.headers.get('content-type');
         if (!response.ok) {
-          console.error(`Error fetching data: ${response.status} ${response.statusText}`);
           throw new Error(`Failed to fetch stations for city ${city.toUpperCase()}`);
         }
-  
-        if (!contentType || !contentType.includes('application/json')) {
-          console.error('Unexpected response format:', contentType);
-          console.error('Raw Response:', await response.text());
-          throw new Error(`Server returned unexpected content type for city ${city.toUpperCase()}`);
-        }
-  
+
         const data = await response.json();
         if (!Array.isArray(data)) {
           throw new Error(`Invalid response format for city ${city.toUpperCase()}`);
         }
-    
+
         const processedStops = data.map((station) => ({
           ...station,
           distance: `${Math.round(station.distance)}m`,
@@ -204,7 +195,7 @@ const TransitDashboard = () => {
         }));
         allStops.push(...processedStops);
       }
-    
+
       setStops(allStops);
       setLastUpdated(new Date());
     } catch (err) {
@@ -212,6 +203,7 @@ const TransitDashboard = () => {
       setError(err.message || 'Failed to load stations');
     } finally {
       setLoading(false);
+      setUpdating(false);
     }
   };
 
@@ -235,11 +227,11 @@ const TransitDashboard = () => {
             </div>
             <button
               onClick={fetchStops}
-              disabled={loading}
+              disabled={updating}
               className="flex items-center space-x-2 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
             >
-              <Repeat2 className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
+              <Repeat2 className={`w-5 h-5 ${updating ? 'animate-spin' : ''}`} />
+              <span>{updating ? 'Updating...' : 'Refresh'}</span>
             </button>
           </div>
         </div>
@@ -260,7 +252,7 @@ const TransitDashboard = () => {
               <p className="text-red-500 text-lg font-medium">{error}</p>
             </div>
           ) : stops.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className={`grid gap-6 sm:grid-cols-2 lg:grid-cols-3 ${updating ? 'opacity-80' : ''}`}>
               {stops.map((stop, index) => (
                 <BusStation key={index} {...stop} />
               ))}
