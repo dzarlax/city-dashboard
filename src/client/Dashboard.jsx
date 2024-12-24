@@ -95,6 +95,7 @@ const TransitDashboard = () => {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+  const [prevLocation, setPrevLocation] = useState(null);
   const [config, setConfig] = useState({
     lat: null,
     lon: null,
@@ -151,20 +152,26 @@ const TransitDashboard = () => {
   useEffect(() => {
     if (userLocation) {
       fetchStops();
-      const interval = setInterval(fetchStops, 10000);
+      const interval = setInterval(fetchTransport, 10000);
       return () => clearInterval(interval);
     }
   }, [userLocation]);
 
-  const fetchStops = async () => {
+  const fetchStops = async (forceUpdate = false) => {
     try {
       if (!SERVER_IP) throw new Error('SERVER_IP is undefined or invalid');
-    
+
       setError(null);
 
-      if (!loading) {
-        setUpdating(true);
+      if (!forceUpdate && prevLocation && 
+          prevLocation.lat === userLocation.lat && 
+          prevLocation.lon === userLocation.lon) {
+        console.log("Location hasn't changed, fetching only transport updates...");
+        await fetchTransport();
+        return;
       }
+
+      setUpdating(true);
 
       const cities = ['bg', 'ns', 'nis'];
       const allStops = [];
@@ -197,6 +204,7 @@ const TransitDashboard = () => {
       }
 
       setStops(allStops);
+      setPrevLocation(userLocation);
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Error fetching stops:', err);
@@ -204,6 +212,48 @@ const TransitDashboard = () => {
     } finally {
       setLoading(false);
       setUpdating(false);
+    }
+  };
+
+  const fetchTransport = async () => {
+    try {
+      setError(null);
+
+      const cities = ['bg', 'ns', 'nis'];
+      const allStops = [];
+
+      for (const city of cities) {
+        const params = new URLSearchParams({
+          lat: userLocation.lat,
+          lon: userLocation.lon,
+          rad: config.searchRad,
+        });
+
+        const url = `${SERVER_IP}/api/transport/${city}/updates?${params.toString()}`;
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch transport updates for city ${city.toUpperCase()}`);
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+          throw new Error(`Invalid response format for transport updates`);
+        }
+
+        const updatedStops = stops.map((stop) => {
+          const updatedVehicles = data.filter((vehicle) => vehicle.stopId === stop.stopId);
+          return { ...stop, vehicles: updatedVehicles };
+        });
+
+        allStops.push(...updatedStops);
+      }
+
+      setStops(allStops);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('Error fetching transport updates:', err);
+      setError(err.message || 'Failed to update transport information');
     }
   };
 
@@ -226,12 +276,12 @@ const TransitDashboard = () => {
               </div>
             </div>
             <button
-              onClick={fetchStops}
+              onClick={() => fetchStops(true)}
               disabled={updating}
               className="flex items-center space-x-2 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
             >
-              <Repeat2 className={`w-5 h-5 ${updating ? 'animate-spin' : ''}`} />
-              <span>{updating ? 'Updating...' : 'Refresh'}</span>
+              <Repeat2 className="w-5 h-5" />
+              <span>Refresh</span>
             </button>
           </div>
         </div>
@@ -252,7 +302,7 @@ const TransitDashboard = () => {
               <p className="text-red-500 text-lg font-medium">{error}</p>
             </div>
           ) : stops.length > 0 ? (
-            <div className={`grid gap-6 sm:grid-cols-2 lg:grid-cols-3 ${updating ? 'opacity-80' : ''}`}>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {stops.map((stop, index) => (
                 <BusStation key={index} {...stop} />
               ))}
