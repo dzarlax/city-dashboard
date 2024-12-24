@@ -14,7 +14,6 @@ COPY index.html ./
 COPY tailwind.config.js ./
 COPY postcss.config.js ./
 COPY dash.svg ./
-COPY .env ./
 RUN npm run build
 
 # Stage 2: Serve with Nginx
