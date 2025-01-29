@@ -10,6 +10,16 @@ export default defineConfig({
   build: {
     outDir: 'custom_components/city_dashboard/frontend/dist',
     emptyOutDir: true,
-    base: '/hacsfiles/city-dashboard/',
+    // Change base to match Home Assistant's serving path
+    base: '/local/city_dashboard/',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+        // Ensure assets are properly named and located
+        assetFileNames: 'assets/[name].[ext]',
+        chunkFileNames: 'assets/[name].js',
+        entryFileNames: 'assets/[name].js'
+      }
+    }
   }
 })
