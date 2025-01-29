@@ -13,7 +13,7 @@ export default defineConfig({
     base: '/local/city_dashboard/',
     rollupOptions: {
       input: {
-        dashboard: 'src/main.jsx' // Указываем точку входа для dashboard.js
+        dashboard: 'src/client/main.jsx' // Указываем точку входа для dashboard.js
       },
       output: {
         manualChunks: undefined,
