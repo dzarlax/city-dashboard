@@ -1,35 +1,72 @@
-name: Build and Deploy Frontend to GitHub Pages
+name: Build and Deploy
 
 on:
   push:
     branches:
-      - main # Запуск при пуше в main
+      - main
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Шаг 1: Checkout репозиторий
+      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Шаг 2: Сборка фронтенда в Docker
-      - name: Build static files in Docker
+      # Build web version
+      - name: Build web version
         run: |
-          docker build -t frontend-builder -f Dockerfile.front .
-          docker create --name build-container frontend-builder
-          docker cp build-container:/app/dist ./dist
-          docker rm build-container
+          docker build -t frontend-builder -f Dockerfile.frontend .
+          docker create --name web-container frontend-builder
+          docker cp web-container:/app/dist ./dist
+          docker rm web-container
 
-      # Шаг 3: Добавление CNAME файла
+      # Build Home Assistant version
+      - name: Build Home Assistant version
+        run: |
+          docker build -t ha-builder -f Dockerfile.frontend --build-arg BUILD_COMMAND=build:ha .
+          docker create --name ha-container ha-builder
+          docker cp ha-container:/app/custom_components ./custom_components
+          docker rm ha-container
+
+      # Add CNAME file
       - name: Add CNAME file
         run: echo "transport.dzarlax.dev" > ./dist/CNAME
 
-      # Шаг 4: Деплой на GitHub Pages
+      # Deploy web version to GitHub Pages
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          publish_branch: gh-pages # Указываем ветку для деплоя
+          publish_branch: gh-pages
+
+      # Create release for Home Assistant integration
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          draft: false
+          prerelease: false
+
+      # Package Home Assistant integration
+      - name: Create HA Integration Archive
+        run: |
+          cd custom_components
+          zip -r ../city-dashboard.zip city_dashboard/
+
+      # Upload to release
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./city-dashboard.zip
+          asset_name: city-dashboard.zip
+          asset_content_type: application/zip

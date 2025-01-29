@@ -3,17 +3,21 @@ FROM node:20 AS frontend-builder
 
 WORKDIR /app
 
-# Установите зависимости
+# Add build argument for different build commands
+ARG BUILD_COMMAND=build:client
+
+# Install dependencies
 COPY package*.json ./
 RUN npm install
 
-# Сборка клиента
-COPY src/client ./src/client
+# Copy source files
+COPY src/ ./src/
 COPY vite.config.js ./
+COPY vite.config.ha.js ./
 COPY index.html ./
 COPY tailwind.config.js ./
 COPY postcss.config.js ./
 COPY dash.svg ./
 
-# Выполняем сборку
-RUN npm run build
+# Build based on the build command
+RUN npm run ${BUILD_COMMAND}
