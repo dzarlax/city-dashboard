@@ -10,15 +10,16 @@ export default defineConfig({
   build: {
     outDir: 'custom_components/city_dashboard/frontend/dist',
     emptyOutDir: true,
-    // Change base to match Home Assistant's serving path
     base: '/local/city_dashboard/',
     rollupOptions: {
+      input: {
+        dashboard: 'src/main.jsx' // Указываем точку входа для dashboard.js
+      },
       output: {
         manualChunks: undefined,
-        // Ensure assets are properly named and located
         assetFileNames: 'assets/[name].[ext]',
         chunkFileNames: 'assets/[name].js',
-        entryFileNames: 'assets/[name].js'
+        entryFileNames: 'dashboard.js'  // ✅ Теперь dashboard.js всегда будет в dist/
       }
     }
   }
