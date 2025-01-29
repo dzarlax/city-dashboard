@@ -202,8 +202,6 @@ const useTransitData = (userLocation, config) => {
 };
 
 // Initial setup hook remains the same
-import { getHomeAssistantConfig } from './utils/homeAssistant';
-
 const useInitialSetup = () => {
   const [state, setState] = useState({
     userLocation: null,
@@ -218,29 +216,28 @@ const useInitialSetup = () => {
       let browserLocation = null;
 
       try {
-        // 1️⃣ Попытка получить координаты из Home Assistant
+        // 1️⃣ Получаем координаты из Home Assistant
         haConfig = await getHomeAssistantConfig();
       } catch (error) {
         console.warn('Failed to fetch Home Assistant config:', error);
       }
 
       try {
-        // 2️⃣ Получаем координаты из API (если нет HA)
+        // 2️⃣ Получаем координаты из API (резервный вариант)
         const response = await fetch(`${SERVER_IP}/api/env`);
         const data = await response.json();
-        const { BELGRADE_LAT, BELGRADE_LON, SEARCH_RAD } = data.env;
         envConfig = {
-          lat: parseFloat(BELGRADE_LAT),
-          lon: parseFloat(BELGRADE_LON),
-          searchRad: parseInt(SEARCH_RAD, 10)
+          lat: parseFloat(data.env.BELGRADE_LAT),
+          lon: parseFloat(data.env.BELGRADE_LON),
+          searchRad: parseInt(data.env.SEARCH_RAD, 10)
         };
       } catch (error) {
         console.warn('Failed to fetch environment config:', error);
       }
 
       try {
-        // 3️⃣ Геолокация браузера (для веб-версии)
-        if ("geolocation" in navigator) {
+        // 3️⃣ Запрашиваем координаты из браузера (только если НЕ Home Assistant)
+        if ("geolocation" in navigator && !window.location.pathname.includes('/local/city_dashboard/')) {
           browserLocation = await new Promise((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(
               position => resolve({
@@ -258,16 +255,14 @@ const useInitialSetup = () => {
         console.warn('Failed to get browser location:', error);
       }
 
-      // Устанавливаем приоритет: Home Assistant > Геолокация браузера > API
+      // 🏆 Выбираем приоритетное значение
       setState({
-        config: envConfig || { searchRad: 1000 }, // Фолбэк на 1000м
+        config: envConfig || { searchRad: 1000 },
         userLocation: haConfig 
           ? { lat: haConfig.latitude, lon: haConfig.longitude } 
           : browserLocation 
             ? { lat: browserLocation.lat, lon: browserLocation.lon } 
-            : envConfig 
-              ? { lat: envConfig.lat, lon: envConfig.lon } 
-              : null,
+            : envConfig,
         error: !envConfig && !haConfig && !browserLocation ? 'Failed to load configuration' : null
       });
     };

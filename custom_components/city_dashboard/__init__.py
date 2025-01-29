@@ -1,23 +1,21 @@
-"""The City Dashboard integration."""
-import os
-import logging
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.components.frontend import add_extra_js_url
-from .const import DOMAIN, NAME, VERSION
 
-_LOGGER = logging.getLogger(__name__)
+DOMAIN = "city_dashboard"
 
-async def async_setup(hass: HomeAssistant, config: dict):
-    """Set up this integration using YAML."""
-    
-    # Register the web application as a panel
-    hass.components.frontend.async_register_built_in_panel(
-        "iframe",
-        NAME,
-        "mdi:bus",
-        DOMAIN,
-        {"url": "https://transport.dzarlax.dev"},
-        require_admin=False
-    )
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Set up City Dashboard from a config entry."""
+    hass.data.setdefault(DOMAIN, {})
 
+    hass.data[DOMAIN][entry.entry_id] = {
+        "geo_source": entry.options.get("geo_source", "homeassistant"),
+        "latitude": entry.options.get("latitude", hass.config.latitude),
+        "longitude": entry.options.get("longitude", hass.config.longitude),
+    }
+
+    return True
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Unload City Dashboard config entry."""
+    hass.data[DOMAIN].pop(entry.entry_id)
     return True
