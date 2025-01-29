@@ -220,26 +220,47 @@ const useInitialSetup = () => {
             lon: parseFloat(BELGRADE_LON),
             searchRad: parseInt(SEARCH_RAD, 10)
           };
-        }),
-      new Promise((resolve, reject) => {
-        if ("geolocation" in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            position => resolve({
-              lat: position.coords.latitude,
-              lon: position.coords.longitude
-            }),
-            error => reject(error)
-          );
-        } else {
-          reject(new Error("Geolocation not supported"));
-        }
-      })
+        })
     ];
+
+    // Try to get Home Assistant location if available
+    if (window.location.pathname.includes('/local/city_dashboard/')) {
+      const hassConnection = window.hassConnection;
+      if (hassConnection) {
+        setupPromises.push(
+          hassConnection.sendMessage({
+            type: 'get_config',
+          }).then((config) => ({
+            lat: config.latitude,
+            lon: config.longitude
+          }))
+        );
+      }
+    }
+
+    // Fallback to browser geolocation
+    if (!window.location.pathname.includes('/local/city_dashboard/')) {
+      setupPromises.push(
+        new Promise((resolve, reject) => {
+          if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+              position => resolve({
+                lat: position.coords.latitude,
+                lon: position.coords.longitude
+              }),
+              error => reject(error)
+            );
+          } else {
+            reject(new Error("Geolocation not supported"));
+          }
+        })
+      );
+    }
 
     Promise.allSettled(setupPromises)
       .then(([configResult, locationResult]) => {
         const config = configResult.status === 'fulfilled' ? configResult.value : null;
-        const location = locationResult.status === 'fulfilled' 
+        const location = locationResult?.status === 'fulfilled' 
           ? locationResult.value
           : config 
             ? { lat: config.lat, lon: config.lon }

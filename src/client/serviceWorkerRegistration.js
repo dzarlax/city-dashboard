@@ -1,7 +1,4 @@
-// serviceWorkerRegistration.js
-
 function isHomeAssistant() {
-  // Check if we're running in Home Assistant
   return window.location.pathname.includes('/local/city_dashboard/');
 }
 
@@ -63,7 +60,6 @@ export function unregister() {
   }
 }
 
-// Add update checker function
 export function checkForUpdates() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready
