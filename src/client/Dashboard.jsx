@@ -212,85 +212,67 @@ const useInitialSetup = () => {
   });
 
   useEffect(() => {
-    const setupPromises = [
-      fetch(`${SERVER_IP}/api/env`)
-        .then(response => response.json())
-        .then(data => {
-          const { BELGRADE_LAT, BELGRADE_LON, SEARCH_RAD } = data.env;
-          return {
-            lat: parseFloat(BELGRADE_LAT),
-            lon: parseFloat(BELGRADE_LON),
-            searchRad: parseInt(SEARCH_RAD, 10)
-          };
-        })
-    ];
+    const setupData = async () => {
+      let haConfig = null;
+      let envConfig = null;
+      let browserLocation = null;
 
-    // Try to get Home Assistant location first
-    if (window.location.pathname.includes('/local/city_dashboard/')) {
-      getHomeAssistantConfig().then(haConfig => {
-        if (haConfig) {
-          setupPromises[0].then(config => {
-            setState({
-              config,
-              userLocation: {
-                lat: haConfig.latitude,
-                lon: haConfig.longitude
-              },
-              error: null
-            });
-          });
-        } else {
-          // Fallback to default coordinates if HA config is not available
-          setupPromises[0].then(config => {
-            setState({
-              config,
-              userLocation: {
-                lat: config.lat,
-                lon: config.lon
-              },
-              error: null
-            });
-          });
-        }
-      });
-      return;
-    }
+      try {
+        // 1️⃣ Попытка получить координаты из Home Assistant
+        haConfig = await getHomeAssistantConfig();
+      } catch (error) {
+        console.warn('Failed to fetch Home Assistant config:', error);
+      }
 
-    // Web version geolocation logic remains the same
-    setupPromises.push(
-      new Promise((resolve, reject) => {
+      try {
+        // 2️⃣ Получаем координаты из API (если нет HA)
+        const response = await fetch(`${SERVER_IP}/api/env`);
+        const data = await response.json();
+        const { BELGRADE_LAT, BELGRADE_LON, SEARCH_RAD } = data.env;
+        envConfig = {
+          lat: parseFloat(BELGRADE_LAT),
+          lon: parseFloat(BELGRADE_LON),
+          searchRad: parseInt(SEARCH_RAD, 10)
+        };
+      } catch (error) {
+        console.warn('Failed to fetch environment config:', error);
+      }
+
+      try {
+        // 3️⃣ Геолокация браузера (для веб-версии)
         if ("geolocation" in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            position => resolve({
-              lat: position.coords.latitude,
-              lon: position.coords.longitude
-            }),
-            error => {
-              console.warn('Geolocation error:', error);
-              reject(error);
-            }
-          );
-        } else {
-          reject(new Error("Geolocation not supported"));
+          browserLocation = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              position => resolve({
+                lat: position.coords.latitude,
+                lon: position.coords.longitude
+              }),
+              error => {
+                console.warn('Geolocation error:', error);
+                reject(error);
+              }
+            );
+          });
         }
-      }).catch(() => null)
-    );
+      } catch (error) {
+        console.warn('Failed to get browser location:', error);
+      }
 
-    Promise.allSettled(setupPromises)
-      .then(([configResult, locationResult]) => {
-        const config = configResult.status === 'fulfilled' ? configResult.value : null;
-        const location = locationResult?.status === 'fulfilled' 
-          ? locationResult.value
-          : config 
-            ? { lat: config.lat, lon: config.lon }
-            : null;
-
-        setState({
-          config: config || state.config,
-          userLocation: location,
-          error: !config ? 'Failed to load configuration' : null
-        });
+      // Устанавливаем приоритет: Home Assistant > Геолокация браузера > API
+      setState({
+        config: envConfig || { searchRad: 1000 }, // Фолбэк на 1000м
+        userLocation: haConfig 
+          ? { lat: haConfig.latitude, lon: haConfig.longitude } 
+          : browserLocation 
+            ? { lat: browserLocation.lat, lon: browserLocation.lon } 
+            : envConfig 
+              ? { lat: envConfig.lat, lon: envConfig.lon } 
+              : null,
+        error: !envConfig && !haConfig && !browserLocation ? 'Failed to load configuration' : null
       });
+    };
+
+    setupData();
   }, []);
 
   return state;
