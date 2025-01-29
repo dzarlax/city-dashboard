@@ -17,7 +17,7 @@ jobs:
       # Build web version
       - name: Build web version
         run: |
-          docker build -t frontend-builder -f Dockerfile.frontend .
+          docker build -t frontend-builder -f Dockerfile.front .
           docker create --name web-container frontend-builder
           docker cp web-container:/app/dist ./dist
           docker rm web-container
