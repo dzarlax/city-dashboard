@@ -15,10 +15,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "add_sidebar": entry.options.get("add_sidebar", True)
     }
 
-    # 🏆 Если пользователь включил "Добавить в боковую панель" — создаем панель
+    # 🏆 Если панель включена в настройках — добавляем её
     if entry.options.get("add_sidebar", True):
-        hass.http.register_static_path(PANEL_URL, hass.config.path("www/city_dashboard/dashboard.js"), cache_headers=True)
-
         hass.components.frontend.async_register_built_in_panel(
             component_name="iframe",
             sidebar_title="City Dashboard",
@@ -33,8 +31,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload City Dashboard config entry."""
     hass.data[DOMAIN].pop(entry.entry_id)
 
-    # ❌ Убираем панель при удалении интеграции
+    # ❌ Удаляем панель
     if entry.options.get("add_sidebar", True):
-        hass.components.frontend.async_remove_panel(DOMAIN)
+        hass.components.frontend.async_remove_panel("city_dashboard")  # ✅ Фиксируем ID панели
 
     return True
