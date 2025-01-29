@@ -202,6 +202,8 @@ const useTransitData = (userLocation, config) => {
 };
 
 // Initial setup hook remains the same
+import { getHomeAssistantConfig } from '../utils/homeAssistant';
+
 const useInitialSetup = () => {
   const [state, setState] = useState({
     userLocation: null,
@@ -223,22 +225,38 @@ const useInitialSetup = () => {
         })
     ];
 
-    // Use default coordinates in Home Assistant
+    // Try to get Home Assistant location first
     if (window.location.pathname.includes('/local/city_dashboard/')) {
-      setupPromises[0].then(config => {
-        setState({
-          config,
-          userLocation: {
-            lat: config.lat,
-            lon: config.lon
-          },
-          error: null
-        });
+      getHomeAssistantConfig().then(haConfig => {
+        if (haConfig) {
+          setupPromises[0].then(config => {
+            setState({
+              config,
+              userLocation: {
+                lat: haConfig.latitude,
+                lon: haConfig.longitude
+              },
+              error: null
+            });
+          });
+        } else {
+          // Fallback to default coordinates if HA config is not available
+          setupPromises[0].then(config => {
+            setState({
+              config,
+              userLocation: {
+                lat: config.lat,
+                lon: config.lon
+              },
+              error: null
+            });
+          });
+        }
       });
       return;
     }
 
-    // Only try geolocation for web version
+    // Web version geolocation logic remains the same
     setupPromises.push(
       new Promise((resolve, reject) => {
         if ("geolocation" in navigator) {
@@ -255,7 +273,7 @@ const useInitialSetup = () => {
         } else {
           reject(new Error("Geolocation not supported"));
         }
-      }).catch(() => null) // Silently fall back to default coordinates
+      }).catch(() => null)
     );
 
     Promise.allSettled(setupPromises)
