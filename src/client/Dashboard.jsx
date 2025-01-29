@@ -202,7 +202,7 @@ const useTransitData = (userLocation, config) => {
 };
 
 // Initial setup hook remains the same
-import { getHomeAssistantConfig } from '../utils/homeAssistant';
+import { getHomeAssistantConfig } from './utils/homeAssistant';
 
 const useInitialSetup = () => {
   const [state, setState] = useState({
