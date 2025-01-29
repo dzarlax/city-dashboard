@@ -1,3 +1,5 @@
+import os
+import shutil
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
@@ -8,14 +10,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up City Dashboard from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    hass.data[DOMAIN][entry.entry_id] = {
-        "geo_source": entry.options.get("geo_source", "homeassistant"),
-        "latitude": entry.options.get("latitude", hass.config.latitude),
-        "longitude": entry.options.get("longitude", hass.config.longitude),
-        "add_sidebar": entry.options.get("add_sidebar", True)
-    }
+    # 🏆 Копируем dashboard.js в /config/www/city_dashboard/
+    www_path = hass.config.path("www/city_dashboard")
+    os.makedirs(www_path, exist_ok=True)
 
-    # 🏆 Если панель включена в настройках — добавляем её
+    source_js = os.path.join(os.path.dirname(__file__), "dashboard.js")
+    dest_js = os.path.join(www_path, "dashboard.js")
+
+    if not os.path.exists(dest_js):
+        shutil.copyfile(source_js, dest_js)
+
+    # 🏆 Добавляем панель в HA
     if entry.options.get("add_sidebar", True):
         hass.components.frontend.async_register_built_in_panel(
             component_name="iframe",
@@ -28,11 +33,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Unload City Dashboard config entry."""
+    """Удаляем панель при удалении интеграции."""
     hass.data[DOMAIN].pop(entry.entry_id)
 
-    # ❌ Удаляем панель
     if entry.options.get("add_sidebar", True):
-        hass.components.frontend.async_remove_panel("city_dashboard")  # ✅ Фиксируем ID панели
+        hass.components.frontend.async_remove_panel("city_dashboard")
 
     return True

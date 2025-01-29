@@ -15,19 +15,21 @@ class CityDashboardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title="City Dashboard",
                 data={},
-                options=user_input  # ✅ Добавляем options
+                options=user_input
             )
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
-                {
-                    vol.Required("geo_source", default="homeassistant"): vol.In(["homeassistant", "manual"]),
-                    vol.Optional("latitude", default=44.7866): vol.Coerce(float),
-                    vol.Optional("longitude", default=20.4489): vol.Coerce(float),
-                    vol.Optional("add_sidebar", default=True): vol.Boolean()
-                }
-            ),
+            {
+                vol.Required("geo_source", default="homeassistant"): vol.In(
+                    {"homeassistant": "Использовать HA", "manual": "Ввести вручную"}
+                ),
+                vol.Optional("latitude", default=44.7866): vol.Coerce(float),
+                vol.Optional("longitude", default=20.4489): vol.Coerce(float),
+                vol.Optional("add_sidebar", default=True): bool,
+            }
+        ),
         )
 
     @staticmethod
@@ -51,10 +53,12 @@ class CityDashboardOptionsFlow(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required("geo_source", default=self.entry.options.get("geo_source", "homeassistant")): vol.In(["homeassistant", "manual"]),
-                    vol.Optional("latitude", default=self.entry.options.get("latitude", 44.7866)): vol.Coerce(float),
-                    vol.Optional("longitude", default=self.entry.options.get("longitude", 20.4489)): vol.Coerce(float),
-                    vol.Optional("add_sidebar", default=self.entry.options.get("add_sidebar", True)): vol.Boolean(),
+                    vol.Required("geo_source", default="homeassistant"): vol.In(
+                        {"homeassistant": "Использовать HA", "manual": "Ввести вручную"}
+                    ),
+                    vol.Optional("latitude", default=44.7866): vol.Coerce(float),
+                    vol.Optional("longitude", default=20.4489): vol.Coerce(float),
+                    vol.Optional("add_sidebar", default=True): bool,
                 }
             ),
         )

@@ -28,6 +28,7 @@ jobs:
           docker build -t ha-builder -f Dockerfile.front --build-arg BUILD_COMMAND=build:ha .
           docker create --name ha-container ha-builder
           docker cp ha-container:/app/custom_components ./custom_components
+          docker cp ha-container:/app/dashboard.js ./custom_components/city_dashboard/dashboard.js # ✅ Добавляем
           docker rm ha-container
 
       # Add CNAME file
@@ -42,7 +43,10 @@ jobs:
           publish_dir: ./dist
           publish_branch: gh-pages
 
-      # Create release for Home Assistant integration
+  create-release:
+    runs-on: ubuntu-latest
+    needs: build-and-deploy  # ✅ 'needs' теперь на уровне jobs
+    steps:
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -54,13 +58,21 @@ jobs:
           draft: false
           prerelease: false
 
-      # Package Home Assistant integration
-      - name: Create HA Integration Archive
-        run: |
-          cd custom_components
-          zip -r ../city-dashboard.zip city_dashboard/
+  upload-release:
+    runs-on: ubuntu-latest
+    needs: create-release  # ✅ Теперь загрузка начинается только после создания релиза
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      # Upload to release
+      - name: Download build artifacts
+        run: |
+          mkdir release
+          cp -r custom_components release/custom_components
+          cp custom_components/city_dashboard/dashboard.js release/dashboard.js  # ✅ Добавляем
+          cd release
+          zip -r ../city-dashboard.zip .
+
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
