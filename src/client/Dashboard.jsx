@@ -223,39 +223,40 @@ const useInitialSetup = () => {
         })
     ];
 
-    // Try to get Home Assistant location if available
+    // Use default coordinates in Home Assistant
     if (window.location.pathname.includes('/local/city_dashboard/')) {
-      const hassConnection = window.hassConnection;
-      if (hassConnection) {
-        setupPromises.push(
-          hassConnection.sendMessage({
-            type: 'get_config',
-          }).then((config) => ({
-            lat: config.latitude,
-            lon: config.longitude
-          }))
-        );
-      }
+      setupPromises[0].then(config => {
+        setState({
+          config,
+          userLocation: {
+            lat: config.lat,
+            lon: config.lon
+          },
+          error: null
+        });
+      });
+      return;
     }
 
-    // Fallback to browser geolocation
-    if (!window.location.pathname.includes('/local/city_dashboard/')) {
-      setupPromises.push(
-        new Promise((resolve, reject) => {
-          if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(
-              position => resolve({
-                lat: position.coords.latitude,
-                lon: position.coords.longitude
-              }),
-              error => reject(error)
-            );
-          } else {
-            reject(new Error("Geolocation not supported"));
-          }
-        })
-      );
-    }
+    // Only try geolocation for web version
+    setupPromises.push(
+      new Promise((resolve, reject) => {
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            position => resolve({
+              lat: position.coords.latitude,
+              lon: position.coords.longitude
+            }),
+            error => {
+              console.warn('Geolocation error:', error);
+              reject(error);
+            }
+          );
+        } else {
+          reject(new Error("Geolocation not supported"));
+        }
+      }).catch(() => null) // Silently fall back to default coordinates
+    );
 
     Promise.allSettled(setupPromises)
       .then(([configResult, locationResult]) => {
