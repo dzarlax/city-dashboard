@@ -25,7 +25,7 @@ jobs:
       # Build Home Assistant version
       - name: Build Home Assistant version
         run: |
-          docker build -t ha-builder -f Dockerfile.frontend --build-arg BUILD_COMMAND=build:ha .
+          docker build -t ha-builder -f Dockerfile.front --build-arg BUILD_COMMAND=build:ha .
           docker create --name ha-container ha-builder
           docker cp ha-container:/app/custom_components ./custom_components
           docker rm ha-container
