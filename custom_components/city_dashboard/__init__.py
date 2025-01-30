@@ -3,13 +3,14 @@ import shutil
 import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.components.lovelace.resources import ResourceStorageCollection
 
 DOMAIN = "city_dashboard"
 PANEL_URL = "/local/city_dashboard/dashboard.js"
 HACS_PANEL_URL = "/hacsfiles/city_dashboard/dashboard.js"
 
-REACT_CDN = "https://unpkg.com/react@17/umd/react.production.min.js"
-REACT_DOM_CDN = "https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"
+REACT_CDN = "/hacsfiles/react/react.production.min.js"
+REACT_DOM_CDN = "/hacsfiles/react/react-dom.production.min.js"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     dest_js = os.path.join(www_path, "dashboard.js")
     hacs_js = os.path.join(hacs_path, "dashboard.js")
 
-    # Убедимся, что директории существуют
+    # Создаем папки, если их нет
     os.makedirs(www_path, exist_ok=True)
     os.makedirs(hacs_path, exist_ok=True)
 
@@ -42,30 +43,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         _LOGGER.error(f"Failed to copy dashboard.js: {e}")
         return False
 
-    # Регистрация ресурсов
-    lovelace_resources = [
+    # Новый способ регистрации статических путей
+    await hass.http.async_register_static_paths([
+        {"path": REACT_CDN, "local_path": "https://unpkg.com/react@17/umd/react.production.min.js", "cache": False},
+        {"path": REACT_DOM_CDN, "local_path": "https://unpkg.com/react-dom@17/umd/react-dom.production.min.js", "cache": False},
+    ])
+
+    # Регистрация ресурсов Lovelace
+    await add_lovelace_resources(hass, [
         {"url": REACT_CDN, "type": "module"},
         {"url": REACT_DOM_CDN, "type": "module"},
         {"url": PANEL_URL, "type": "module"}
-    ]
-
-    try:
-        for resource in lovelace_resources:
-            hass.http.register_static_path(resource["url"], resource["url"], cache_headers=False)
-            _LOGGER.info(f"Registered Lovelace resource: {resource['url']}")
-
-        # Добавляем ресурсы в Lovelace
-        await add_lovelace_resources(hass, lovelace_resources)
-    except Exception as e:
-        _LOGGER.error(f"Failed to register Lovelace resources: {e}")
-        return False
+    ])
 
     return True
 
 
 async def add_lovelace_resources(hass: HomeAssistant, resources: list):
-    """Добавить ресурсы в Lovelace."""
-    resource_storage = hass.data.get("lovelace.resources")
+    """Добавить ресурсы в Lovelace автоматически."""
+    if "lovelace" not in hass.data:
+        _LOGGER.warning("Lovelace storage not found. Cannot register resources.")
+        return
+
+    resource_storage = hass.data["lovelace"].get("resources")
     if resource_storage is None:
         _LOGGER.warning("Lovelace resources storage not found.")
         return
