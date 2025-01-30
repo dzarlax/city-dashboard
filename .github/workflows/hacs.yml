@@ -68,25 +68,28 @@ jobs:
       # Затем готовим HACS-релиз
       - name: Prepare HACS package
         run: |
+          # Start fresh with correct structure
           mkdir -p hacs-release/custom_components/city_dashboard
-          mkdir -p hacs-release/custom_components/city_dashboard/www
-          mkdir -p hacs-release/custom_components/city_dashboard/translations
           
-          # Копируем Python файлы
+          # Copy Python files directly to correct location
           cp custom_components/city_dashboard/__init__.py hacs-release/custom_components/city_dashboard/
           cp custom_components/city_dashboard/manifest.json hacs-release/custom_components/city_dashboard/
           cp custom_components/city_dashboard/config_flow.py hacs-release/custom_components/city_dashboard/
           cp custom_components/city_dashboard/const.py hacs-release/custom_components/city_dashboard/
           
-          # Копируем переводы
-          cp -r custom_components/city_dashboard/translations/* hacs-release/custom_components/city_dashboard/translations/
+          # Copy translations if they exist
+          if [ -d "custom_components/city_dashboard/translations" ]; then
+            cp -r custom_components/city_dashboard/translations hacs-release/custom_components/city_dashboard/
+          fi
           
-          # Копируем собранные файлы фронтенда
-          cp -r custom_components/city_dashboard/www/* hacs-release/custom_components/city_dashboard/www/
+          # Copy www directory if it exists
+          if [ -d "custom_components/city_dashboard/www" ]; then
+            cp -r custom_components/city_dashboard/www hacs-release/custom_components/city_dashboard/
+          fi
           
-          # Создаем архив
+          # Create zip from the content of hacs-release directory
           cd hacs-release
-          zip -r ../city_dashboard.zip ./*
+          zip -r ../city_dashboard.zip custom_components
 
       - name: Commit version bump
         run: |
