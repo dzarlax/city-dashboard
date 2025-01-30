@@ -53,6 +53,12 @@ jobs:
           git commit -m "Bump version to ${{ env.version }}"
           git push origin main
 
+      - name: Delete existing GitHub Tag (if exists)
+        continue-on-error: true
+        run: |
+          git tag -d v${{ env.version }} || true
+          git push --delete origin v${{ env.version }} || true
+
       - name: Create GitHub Tag
         run: |
           git tag -a v${{ env.version }} -m "Release v${{ env.version }}"
