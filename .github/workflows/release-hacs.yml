@@ -16,14 +16,38 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Ensure build directory exists
+        run: mkdir -p www/community/city_dashboard
+
       - name: Build for HACS
         run: npm run build:hacs
 
-      - name: List files in build directory
+      - name: Debug Vite Build
         run: ls -la www/community/city_dashboard
+
+      - name: Get version from manifest.json
+        id: get_version
+        run: echo "::set-output name=version::$(jq -r .version custom_components/city_dashboard/manifest.json)"
+
+      - name: Create GitHub Tag
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git tag -a v${{ steps.get_version.outputs.version }} -m "Release v${{ steps.get_version.outputs.version }}"
+          git push origin v${{ steps.get_version.outputs.version }}
 
       - name: Upload HACS Build
         uses: actions/upload-artifact@v3
         with:
           name: hacs-city-dashboard
           path: www/community/city_dashboard
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Release v${{ steps.get_version.outputs.version }}
+          body: "This is an automated release for HACS"
+          draft: false
+          prerelease: false
+          files: www/community/city_dashboard/*
