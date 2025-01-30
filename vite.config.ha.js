@@ -1,21 +1,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import envCompatible from 'vite-plugin-env-compatible'
-import path from 'path'
 
 const isHACS = process.env.HACS === 'true';
 
 export default defineConfig({
-  plugins: [
-    react(),
-    envCompatible()
-  ],
+  plugins: [react(), envCompatible()],
   build: {
-    outDir: isHACS 
-      ? 'custom_components/city_dashboard/frontend/dist' 
-      : 'www/community/city_dashboard',
+    outDir: 'www/community/city_dashboard', // Всегда билдим в нужную папку
     emptyOutDir: true,
-    base: isHACS ? '/local/city_dashboard/' : '/hacsfiles/city_dashboard/',
+    base: '/hacsfiles/city_dashboard/',
     rollupOptions: {
       input: {
         dashboard: 'src/client/main.jsx'
