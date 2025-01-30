@@ -21,6 +21,3 @@ COPY dash.svg ./
 
 # Build based on the build command
 RUN npm run ${BUILD_COMMAND}
-
-# Copy built dashboard.js to the root of /app/
-RUN cp /app/dist/dashboard.js /app/dashboard.js
