@@ -93,7 +93,7 @@ jobs:
           zip -r ../city_dashboard.zip city_dashboard || echo "Zip creation failed"
           cd ..
           ls -la city_dashboard.zip || echo "Zip file not found"
-
+          cp city_dashboard.zip ../city_dashboard.zip
 
       - name: Commit version bump
         run: |
@@ -112,4 +112,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            hacs-release/custom_components/city_dashboard.zip
+            city_dashboard.zip
