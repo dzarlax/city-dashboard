@@ -1,131 +1,94 @@
+"""The City Dashboard integration."""
 import os
 import shutil
-import logging
-import time
-from pathlib import Path
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import HomeAssistantError
+import logging
 
-DOMAIN = "city_dashboard"
-PANEL_URL = "/local/city_dashboard/dashboard.js"
-HACS_PANEL_URL = "/hacsfiles/city_dashboard/dashboard.js"
-
-REACT_VERSION = "17"
-REACT_CDN = f"https://unpkg.com/react@{REACT_VERSION}/umd/react.production.min.js"
-REACT_DOM_CDN = f"https://unpkg.com/react-dom@{REACT_VERSION}/umd/react-dom.production.min.js"
+from .const import DOMAIN, NAME, VERSION
 
 _LOGGER = logging.getLogger(__name__)
+PLATFORMS: list[str] = []
 
-REQUIRED_FILES = [
-    "dashboard.js",
-    "assets",
-    "index.html"
-]
-
-async def verify_assets(hass: HomeAssistant) -> bool:
-    """Verify that all required assets are present."""
-    base_path = hass.config.path("www/community/city_dashboard")
-    
-    for file in REQUIRED_FILES:
-        file_path = os.path.join(base_path, file)
-        if not os.path.exists(file_path):
-            _LOGGER.error(f"Missing required file: {file} at {file_path}")
-            return False
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up the City Dashboard component."""
     return True
-
-async def copy_assets(hass: HomeAssistant) -> bool:
-    """Copy assets from the integration directory to www directory."""
-    try:
-        integration_dir = os.path.dirname(__file__)
-        www_path = hass.config.path("www/city_dashboard")
-        hacs_path = hass.config.path("www/community/city_dashboard")
-
-        # Ensure directories exist
-        os.makedirs(www_path, exist_ok=True)
-        os.makedirs(hacs_path, exist_ok=True)
-
-        # Copy all required files
-        for file in REQUIRED_FILES:
-            source = os.path.join(integration_dir, file)
-            www_dest = os.path.join(www_path, file)
-            hacs_dest = os.path.join(hacs_path, file)
-
-            if os.path.isdir(source):
-                await hass.async_add_executor_job(shutil.copytree, source, www_dest, dirs_exist_ok=True)
-                await hass.async_add_executor_job(shutil.copytree, source, hacs_dest, dirs_exist_ok=True)
-            else:
-                await hass.async_add_executor_job(shutil.copy2, source, www_dest)
-                await hass.async_add_executor_job(shutil.copy2, source, hacs_dest)
-
-        return True
-    except Exception as e:
-        _LOGGER.error(f"Failed to copy assets: {e}")
-        return False
-
-async def add_lovelace_resources(hass: HomeAssistant, resources: list):
-    """Add resources to Lovelace automatically."""
-    if "lovelace" not in hass.data:
-        _LOGGER.warning("Lovelace storage not found. Cannot register resources.")
-        return
-
-    resource_storage = hass.data["lovelace"].get("resources")
-    if resource_storage is None:
-        _LOGGER.warning("Lovelace resources storage not found.")
-        return
-
-    existing_resources = [item["url"] for item in resource_storage.async_items()]
-    
-    for resource in resources:
-        if resource["url"] not in existing_resources:
-            try:
-                await resource_storage.async_create_item({
-                    "url": resource["url"],
-                    "type": resource["res_type"],
-                    "version": str(time.time())  # Cache busting
-                })
-                _LOGGER.info(f"Added Lovelace resource: {resource['url']}")
-            except Exception as e:
-                _LOGGER.error(f"Failed to add Lovelace resource {resource['url']}: {e}")
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up City Dashboard from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+    
+    # Определяем пути
+    component_path = os.path.dirname(os.path.realpath(__file__))
+    www_path = os.path.join(hass.config.path("www"), "community", "city_dashboard")
+    
+    # Создаем директорию если её нет
+    os.makedirs(www_path, exist_ok=True)
+    
+    try:
+        # Проверяем наличие собранных файлов в www директории компонента
+        component_www = os.path.join(component_path, "www")
+        if not os.path.exists(component_www):
+            raise HomeAssistantError(f"Missing www directory in component: {component_www}")
 
-    # Verify and copy assets
-    if not await verify_assets(hass):
-        _LOGGER.info("Assets missing, attempting to copy from integration directory...")
-        if not await copy_assets(hass):
-            raise HomeAssistantError("Failed to copy required assets")
+        # Копируем dashboard.js
+        dashboard_src = os.path.join(component_www, "dashboard.js")
+        dashboard_dst = os.path.join(www_path, "dashboard.js")
+        if os.path.exists(dashboard_src):
+            _LOGGER.debug("Copying dashboard.js from %s to %s", dashboard_src, dashboard_dst)
+            shutil.copy2(dashboard_src, dashboard_dst)
+        else:
+            raise HomeAssistantError(f"Missing required file: {dashboard_src}")
+        
+        # Копируем assets
+        assets_src = os.path.join(component_www, "assets")
+        assets_dst = os.path.join(www_path, "assets")
+        if os.path.exists(assets_src):
+            _LOGGER.debug("Copying assets from %s to %s", assets_src, assets_dst)
+            if os.path.exists(assets_dst):
+                shutil.rmtree(assets_dst)
+            shutil.copytree(assets_src, assets_dst)
+        else:
+            raise HomeAssistantError(f"Missing required directory: {assets_src}")
+            
+    except Exception as err:
+        _LOGGER.error("Failed to copy files: %s", err)
+        raise HomeAssistantError(f"Failed to copy required files: {err}")
 
-    # Add Lovelace resources with cache busting
-    version = str(time.time())
-    await add_lovelace_resources(hass, [
-        {"url": f"{REACT_CDN}?v={version}", "res_type": "module"},
-        {"url": f"{REACT_DOM_CDN}?v={version}", "res_type": "module"},
-        {"url": f"{HACS_PANEL_URL}?v={version}", "res_type": "module"},
-    ])
+    # Сохраняем конфигурацию
+    hass.data[DOMAIN][entry.entry_id] = {
+        "options": entry.options,
+        "version": VERSION
+    }
 
-    # Register the panel
-    panel_path = "/local/city_dashboard/index.html"
-    if not os.path.exists(hass.config.path("www/community/city_dashboard/index.html")):
-        panel_path = "/hacsfiles/city_dashboard/index.html"
+    # Регистрируем обработчик обновления конфигурации
+    entry.async_on_unload(entry.add_update_listener(update_listener))
 
-    hass.components.frontend.async_register_built_in_panel(
-        component_name="iframe",
-        sidebar_title="City Dashboard",
-        sidebar_icon="mdi:city",
-        frontend_url_path="city_dashboard_panel",
-        config={"url": f"{panel_path}?v={version}"},  # Add cache busting
-        require_admin=False,
-    )
+    # Загружаем платформы
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    # Remove panel
-    if "city_dashboard_panel" in hass.data.get("frontend_panels", {}):
-        hass.components.frontend.async_remove_panel("city_dashboard_panel")
+    # Выгружаем платформы
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     
-    return True
+    if unload_ok:
+        # Удаляем данные конфигурации
+        hass.data[DOMAIN].pop(entry.entry_id)
+        
+        try:
+            # Удаляем файлы
+            www_path = os.path.join(hass.config.path("www"), "community", "city_dashboard")
+            if os.path.exists(www_path):
+                shutil.rmtree(www_path)
+        except Exception as err:
+            _LOGGER.error("Error cleaning up files: %s", err)
+
+    return unload_ok
+
+async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle options update."""
+    await hass.config_entries.async_reload(entry.entry_id)

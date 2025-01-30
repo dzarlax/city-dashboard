@@ -55,27 +55,28 @@ jobs:
 
       - name: Build HACS frontend
         run: |
-          HACS=true npm run build
-          mkdir -p www/community/city_dashboard
-          cp -r dist/* www/community/city_dashboard/
+          npm install
+          HACS=true npm run build:hacs
+          mkdir -p custom_components/city_dashboard/www
+          cp -r www/community/city_dashboard/* custom_components/city_dashboard/www/
 
       - name: Prepare HACS package
         run: |
           mkdir -p hacs-release/custom_components/city_dashboard
+          mkdir -p hacs-release/custom_components/city_dashboard/www
+          mkdir -p hacs-release/custom_components/city_dashboard/translations
           
-          # Копируем основные файлы компонента
+          # Копируем основные файлы
           cp custom_components/city_dashboard/__init__.py hacs-release/custom_components/city_dashboard/
           cp custom_components/city_dashboard/manifest.json hacs-release/custom_components/city_dashboard/
           cp custom_components/city_dashboard/config_flow.py hacs-release/custom_components/city_dashboard/
           cp custom_components/city_dashboard/const.py hacs-release/custom_components/city_dashboard/
           
-          # Создаем www директорию и копируем собранные файлы
-          mkdir -p hacs-release/custom_components/city_dashboard/www
-          cp -r www/community/city_dashboard/* hacs-release/custom_components/city_dashboard/www/
+          # Копируем переводы
+          cp custom_components/city_dashboard/translations/en.json hacs-release/custom_components/city_dashboard/translations/
           
-          # Создаем архив
-          cd hacs-release
-          zip -r ../city_dashboard.zip ./*
+          # Копируем собранные файлы фронтенда
+          cp -r custom_components/city_dashboard/www/* hacs-release/custom_components/city_dashboard/www/
 
       - name: Commit version bump
         run: |
