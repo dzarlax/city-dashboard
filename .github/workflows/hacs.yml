@@ -58,7 +58,17 @@ jobs:
           git tag -a v${{ env.version }} -m "Release v${{ env.version }}"
           git push origin v${{ env.version }}
 
-      - name: Create GitHub Release
+      - name: Build HACS frontend
+        run: npm install && npm run build:hacs
+
+      - name: Prepare HACS package
+        run: |
+          mkdir -p hacs-release
+          cp -r custom_components/city_dashboard hacs-release/
+          cp -r www/community/city_dashboard hacs-release/
+          tar -czvf hacs-release.tar.gz hacs-release/
+
+      - name: Upload HACS Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.version }}
@@ -66,3 +76,8 @@ jobs:
           body: "Automated release for HACS"
           draft: false
           prerelease: false
+          files: |
+            hacs-release.tar.gz
+            custom_components/city_dashboard/manifest.json
+            www/community/city_dashboard/dashboard.js
+            www/community/city_dashboard/assets/*
