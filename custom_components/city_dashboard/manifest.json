@@ -5,12 +5,15 @@
   "config_flow": true,
   "documentation": "https://github.com/dzarlax/city-dashboard",
   "dependencies": [],
-  "codeowners": [
-    "@dzarlax"
-  ],
+  "codeowners": ["@dzarlax"],
   "requirements": [],
   "iot_class": "cloud_polling",
   "homeassistant": "2023.8.0",
   "render_readme": true,
-  "issue_tracker": "https://github.com/dzarlax/city-dashboard/issues"
+  "issue_tracker": "https://github.com/dzarlax/city-dashboard/issues",
+  "files": [
+    "dashboard.js",
+    "index.html",
+    "assets/**"
+  ]
 }
