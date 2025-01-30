@@ -7,7 +7,7 @@
     "dev": "npm run client",
     "build:client": "vite build",
     "build": "npm run build:client",
-    "build:ha": "vite build --config vite.config.ha.js",
+    "build:hacs": "HACS=true vite build --config vite.config.ha.js",
     "start": "npm run start:client",
     "start:client": "vite preview --host --port 3000"
   },

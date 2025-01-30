@@ -1,0 +1,26 @@
+name: Release HACS Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build for HACS
+        run: npm run build:hacs
+
+      - name: Upload HACS Build
+        uses: actions/upload-artifact@v3
+        with:
+          name: hacs-city-dashboard
+          path: www/community/city_dashboard
