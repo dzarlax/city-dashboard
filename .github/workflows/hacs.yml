@@ -76,7 +76,7 @@ jobs:
           cp custom_components/city_dashboard/* hacs-release/custom_components/city_dashboard/
       
           # Копируем собранные файлы
-          cp -r www/community/city_dashboard/* hacs-release/www/community/city_dashboard/
+          cp -r www/community/city_dashboard/* hacs-release/custom_components/city_dashboard/
       
           # Упаковываем релиз
           tar -czvf hacs-release.tar.gz -C hacs-release .
