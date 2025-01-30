@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
   schedule:
-    - cron: "0 0 * * *"  # Run daily at midnight
+    - cron: "0 0 * * *"
 
 jobs:
   hacs:
@@ -31,6 +31,11 @@ jobs:
       - name: Install jq
         run: sudo apt-get install jq -y
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
       - name: Read current version
         id: get_version
         run: |
@@ -45,6 +50,33 @@ jobs:
           jq --arg version "$version" '.version = $version' custom_components/city_dashboard/manifest.json > manifest.tmp.json
           mv manifest.tmp.json custom_components/city_dashboard/manifest.json
 
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build HACS frontend
+        run: |
+          HACS=true npm run build
+          mkdir -p www/community/city_dashboard
+          cp -r dist/* www/community/city_dashboard/
+
+      - name: Prepare HACS package
+        run: |
+          mkdir -p hacs-release/custom_components/city_dashboard
+          
+          # Копируем основные файлы компонента
+          cp custom_components/city_dashboard/__init__.py hacs-release/custom_components/city_dashboard/
+          cp custom_components/city_dashboard/manifest.json hacs-release/custom_components/city_dashboard/
+          cp custom_components/city_dashboard/config_flow.py hacs-release/custom_components/city_dashboard/
+          cp custom_components/city_dashboard/const.py hacs-release/custom_components/city_dashboard/
+          
+          # Создаем www директорию и копируем собранные файлы
+          mkdir -p hacs-release/custom_components/city_dashboard/www
+          cp -r www/community/city_dashboard/* hacs-release/custom_components/city_dashboard/www/
+          
+          # Создаем архив
+          cd hacs-release
+          zip -r ../city_dashboard.zip ./*
+
       - name: Commit version bump
         run: |
           git config --global user.name "GitHub Actions"
@@ -53,40 +85,7 @@ jobs:
           git commit -m "Bump version to ${{ env.version }}"
           git push origin main
 
-      - name: Delete existing GitHub Tag (if exists)
-        continue-on-error: true
-        run: |
-          git tag -d v${{ env.version }} || true
-          git push --delete origin v${{ env.version }} || true
-
-      - name: Create GitHub Tag
-        run: |
-          git tag -a v${{ env.version }} -m "Release v${{ env.version }}"
-          git push origin v${{ env.version }}
-
-      - name: Build HACS frontend
-        run: npm install && npm run build:hacs
-
-      - name: Prepare HACS package
-        run: |
-          mkdir -p hacs-release/custom_components/city_dashboard
-          
-          # Копируем основные файлы компонента
-          cp -r custom_components/city_dashboard/* hacs-release/custom_components/city_dashboard/
-          
-          # Создаем директории для веб-файлов
-          mkdir -p hacs-release/custom_components/city_dashboard/www
-          
-          # Копируем веб-файлы
-          cp dashboard.js hacs-release/custom_components/city_dashboard/
-          cp index.html hacs-release/custom_components/city_dashboard/
-          cp -r assets hacs-release/custom_components/city_dashboard/
-          
-          # Создаем архив
-          cd hacs-release
-          zip -r ../city_dashboard.zip ./*
-
-      - name: Upload HACS Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.version }}
@@ -95,7 +94,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            hacs-release.tar.gz
-            custom_components/city_dashboard/manifest.json
-            www/community/city_dashboard/dashboard.js
-            www/community/city_dashboard/assets/*
+            city_dashboard.zip
