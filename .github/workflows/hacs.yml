@@ -55,6 +55,12 @@ jobs:
 
       - name: Build HACS frontend
         run: |
+          HACS=true npm run build
+          mkdir -p www/community/city_dashboard
+          cp -r dist/* www/community/city_dashboard/
+
+      - name: Build HACS frontend
+        run: |
           npm install
           HACS=true npm run build:hacs
           mkdir -p custom_components/city_dashboard/www
@@ -77,6 +83,10 @@ jobs:
           
           # Копируем собранные файлы фронтенда
           cp -r custom_components/city_dashboard/www/* hacs-release/custom_components/city_dashboard/www/
+          
+          # Создаем архив
+          cd hacs-release
+          zip -r ../city_dashboard.zip ./*
 
       - name: Commit version bump
         run: |
