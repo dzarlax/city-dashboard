@@ -22,12 +22,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     dest_js = os.path.join(www_path, "dashboard.js")
     hacs_js = os.path.join(hacs_path, "dashboard.js")
 
-    if not os.path.exists(dest_js):
-        shutil.copyfile(source_js, dest_js)
-    if not os.path.exists(hacs_js):
-        shutil.copyfile(source_js, hacs_js)
+    if not os.path.exists(source_js):
+        hass.components.logger.error(f"Dashboard.js is missing: {source_js}")
+        return False
 
-    # Добавляем панель в HA с поддержкой HACS
+    # Используем асинхронный копи-файл
+    try:
+        await hass.async_add_executor_job(shutil.copyfile, source_js, dest_js)
+        await hass.async_add_executor_job(shutil.copyfile, source_js, hacs_js)
+    except Exception as e:
+        hass.components.logger.error(f"Failed to copy dashboard.js: {e}")
+        return False
+
     panel_url = HACS_PANEL_URL if os.path.exists(hacs_js) else PANEL_URL
 
     if entry.options.get("add_sidebar", True):
