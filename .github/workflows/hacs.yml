@@ -89,11 +89,11 @@ jobs:
           fi
           
           # Create zip from the content of hacs-release directory
-          cd hacs-release/custom_components/
-          zip -r ../city_dashboard.zip city_dashboard || echo "Zip creation failed"
+          cd hacs-release/custom_components/city_dashboard
+          zip -r ../city_dashboard.zip * || echo "Zip creation failed"
           cd ..
           ls -la city_dashboard.zip || echo "Zip file not found"
-          cp city_dashboard.zip ../city_dashboard.zip
+          cp city_dashboard.zip ../../
 
       - name: Commit version bump
         run: |
