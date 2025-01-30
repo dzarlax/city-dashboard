@@ -66,6 +66,14 @@ jobs:
           cd hacs-release
           zip -r ../city_dashboard.zip ./*
 
+      - name: Commit version bump
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add custom_components/city_dashboard/manifest.json
+          git commit -m "Bump version to ${{ env.version }}"
+          git push origin main
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
