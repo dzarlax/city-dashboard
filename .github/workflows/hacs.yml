@@ -94,6 +94,7 @@ jobs:
           cd ..
           ls -la city_dashboard.zip || echo "Zip file not found"
 
+
       - name: Commit version bump
         run: |
           git config --global user.name "GitHub Actions"
@@ -111,4 +112,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            city_dashboard.zip
+            hacs-release/custom_components/city_dashboard.zip
