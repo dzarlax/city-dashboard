@@ -14,24 +14,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Build web version
-      - name: Build web version
+      # Build web version in Docker
+      - name: Build web version in Docker
         run: |
           docker build -t frontend-builder -f Dockerfile.front .
-          docker create --name web-container frontend-builder
-          docker cp web-container:/app/dist ./dist
-          docker rm web-container
+          docker create --name build-container frontend-builder
+          docker cp build-container:/app/dist ./dist
+          docker rm build-container
 
       # Build Home Assistant version
       - name: Build Home Assistant version
         run: |
           docker build -t ha-builder -f Dockerfile.front --build-arg BUILD_COMMAND=build:ha .
-          docker create --name ha-container ha-builder
-          docker cp ha-container:/app/custom_components ./custom_components
-          docker cp ha-container:/app/dashboard.js ./custom_components/city_dashboard/dashboard.js # ✅ Добавляем
-          docker rm ha-container
+          docker create --name ha-build-container ha-builder
+          docker cp ha-build-container:/app/custom_components ./custom_components
+          docker rm ha-build-container
 
-      # Add CNAME file
+      # Add CNAME file for web version
       - name: Add CNAME file
         run: echo "transport.dzarlax.dev" > ./dist/CNAME
 
@@ -43,11 +42,8 @@ jobs:
           publish_dir: ./dist
           publish_branch: gh-pages
 
-  create-release:
-    runs-on: ubuntu-latest
-    needs: build-and-deploy  # ✅ 'needs' теперь на уровне jobs
-    steps:
-      - name: Create Release
+      # Create Home Assistant release
+      - name: Create Home Assistant Release
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -58,21 +54,13 @@ jobs:
           draft: false
           prerelease: false
 
-  upload-release:
-    runs-on: ubuntu-latest
-    needs: create-release  # ✅ Теперь загрузка начинается только после создания релиза
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Download build artifacts
+      # Zip Home Assistant integration
+      - name: Zip Home Assistant integration
         run: |
-          mkdir release
-          cp -r custom_components release/custom_components
-          cp custom_components/city_dashboard/dashboard.js release/dashboard.js  # ✅ Добавляем
-          cd release
-          zip -r ../city-dashboard.zip .
+          cd custom_components
+          zip -r ../city-dashboard.zip city_dashboard/
 
+      # Upload Home Assistant integration to release
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
