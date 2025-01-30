@@ -23,9 +23,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register dashboard panel
     if entry.options.get("add_sidebar", True):
         _LOGGER.debug("Registering panel for City Dashboard")
-        await async_register_built_in_panel(
+        hass.components.frontend.async_register_panel(
             hass,
-            "city-dashboard",
+            component_name="custom",
             sidebar_title=NAME,
             sidebar_icon="mdi:view-dashboard",
             frontend_url_path="city-dashboard",
