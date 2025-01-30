@@ -69,6 +69,7 @@ jobs:
       - name: Prepare HACS package
         run: |
           # Start fresh with correct structure
+          rm -rf hacs-release
           mkdir -p hacs-release/custom_components/city_dashboard
           
           # Copy Python files directly to correct location
@@ -88,8 +89,10 @@ jobs:
           fi
           
           # Create zip from the content of hacs-release directory
-          cd hacs-release/custom_components/
-          zip -r ../city_dashboard.zip city_dashboard
+          cd hacs-release
+          zip -r ../city_dashboard.zip custom_components || echo "Zip creation failed"
+          cd ..
+          ls -la city_dashboard.zip || echo "Zip file not found"
 
       - name: Commit version bump
         run: |
