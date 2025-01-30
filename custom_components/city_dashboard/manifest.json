@@ -1,10 +1,12 @@
 {
   "domain": "city_dashboard",
   "name": "City Dashboard",
-  "version": "0.1.29",
+  "version": "0.1.30",
   "config_flow": true,
   "documentation": "https://github.com/dzarlax/city-dashboard",
-  "dependencies": ["frontend"],
+  "dependencies": [
+    "frontend"
+  ],
   "frontend_js_module": "dashboard.js",
   "translations": [
     "en"
