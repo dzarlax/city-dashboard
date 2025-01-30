@@ -28,21 +28,43 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install jq
+        run: sudo apt-get install jq -y
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
+      - name: Read current version
+        id: get_version
+        run: |
+          CURRENT_VERSION=$(jq -r .version custom_components/city_dashboard/manifest.json)
+          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+          NEW_VERSION="$major.$minor.$((patch + 1))"
+          echo "New version: $NEW_VERSION"
+          echo "version=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Update manifest.json
+        run: |
+          jq --arg version "$version" '.version = $version' custom_components/city_dashboard/manifest.json > manifest.tmp.json
+          mv manifest.tmp.json custom_components/city_dashboard/manifest.json
+
       - name: Install dependencies
         run: npm ci
 
-      # Сначала собираем фронтенд
+      - name: Build HACS frontend
+        run: |
+          HACS=true npm run build
+          mkdir -p www/community/city_dashboard
+          cp -r dist/* www/community/city_dashboard/
+
       - name: Build frontend
         run: |
           HACS=true npm run build:hacs
           mkdir -p custom_components/city_dashboard/www
           cp -r www/community/city_dashboard/* custom_components/city_dashboard/www/
-
+  
       # Затем готовим HACS-релиз
       - name: Prepare HACS package
         run: |
