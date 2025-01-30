@@ -4,6 +4,7 @@ import shutil
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.components.frontend import async_register_built_in_panel
 import logging
 
 from .const import DOMAIN, NAME, VERSION
@@ -18,6 +19,26 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up City Dashboard from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+    
+    # Register dashboard panel
+    if entry.options.get("add_sidebar", True):
+        _LOGGER.debug("Registering panel for City Dashboard")
+        await async_register_built_in_panel(
+            hass,
+            "city-dashboard",
+            sidebar_title=NAME,
+            sidebar_icon="mdi:view-dashboard",
+            frontend_url_path="city-dashboard",
+            require_admin=False,
+            config={
+                "_panel_custom": {
+                    "name": "city-dashboard",
+                    "module_url": "/hacsfiles/city_dashboard/dashboard.js",
+                    "embed_iframe": True,
+                    "trust_external": False
+                }
+            }
+        )
     
     # Определяем пути
     component_path = os.path.dirname(os.path.realpath(__file__))
@@ -76,16 +97,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     
     if unload_ok:
-        # Удаляем данные конфигурации
+        # Remove panel registration
+        if entry.options.get("add_sidebar", True):
+            _LOGGER.debug("Removing panel for City Dashboard")
+            hass.components.frontend.async_remove_panel("city-dashboard")
+        # Clear data
         hass.data[DOMAIN].pop(entry.entry_id)
-        
-        try:
-            # Удаляем файлы
-            www_path = os.path.join(hass.config.path("www"), "community", "city_dashboard")
-            if os.path.exists(www_path):
-                shutil.rmtree(www_path)
-        except Exception as err:
-            _LOGGER.error("Error cleaning up files: %s", err)
 
     return unload_ok
 

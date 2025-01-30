@@ -4,7 +4,11 @@
   "version": "0.1.29",
   "config_flow": true,
   "documentation": "https://github.com/dzarlax/city-dashboard",
-  "dependencies": [],
+  "dependencies": ["frontend"],
+  "frontend_js_module": "dashboard.js",
+  "translations": [
+    "en"
+  ],
   "codeowners": [
     "@dzarlax"
   ],
