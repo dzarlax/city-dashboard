@@ -28,58 +28,36 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install jq
-        run: sudo apt-get install jq -y
-
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      - name: Read current version
-        id: get_version
-        run: |
-          CURRENT_VERSION=$(jq -r .version custom_components/city_dashboard/manifest.json)
-          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-          NEW_VERSION="$major.$minor.$((patch + 1))"
-          echo "New version: $NEW_VERSION"
-          echo "version=$NEW_VERSION" >> $GITHUB_ENV
-
-      - name: Update manifest.json
-        run: |
-          jq --arg version "$version" '.version = $version' custom_components/city_dashboard/manifest.json > manifest.tmp.json
-          mv manifest.tmp.json custom_components/city_dashboard/manifest.json
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Build HACS frontend
+      # Сначала собираем фронтенд
+      - name: Build frontend
         run: |
-          HACS=true npm run build
-          mkdir -p www/community/city_dashboard
-          cp -r dist/* www/community/city_dashboard/
-
-      - name: Build HACS frontend
-        run: |
-          npm install
           HACS=true npm run build:hacs
           mkdir -p custom_components/city_dashboard/www
           cp -r www/community/city_dashboard/* custom_components/city_dashboard/www/
 
+      # Затем готовим HACS-релиз
       - name: Prepare HACS package
         run: |
           mkdir -p hacs-release/custom_components/city_dashboard
           mkdir -p hacs-release/custom_components/city_dashboard/www
           mkdir -p hacs-release/custom_components/city_dashboard/translations
           
-          # Копируем основные файлы
+          # Копируем Python файлы
           cp custom_components/city_dashboard/__init__.py hacs-release/custom_components/city_dashboard/
           cp custom_components/city_dashboard/manifest.json hacs-release/custom_components/city_dashboard/
           cp custom_components/city_dashboard/config_flow.py hacs-release/custom_components/city_dashboard/
           cp custom_components/city_dashboard/const.py hacs-release/custom_components/city_dashboard/
           
           # Копируем переводы
-          cp custom_components/city_dashboard/translations/en.json hacs-release/custom_components/city_dashboard/translations/
+          cp -r custom_components/city_dashboard/translations/* hacs-release/custom_components/city_dashboard/translations/
           
           # Копируем собранные файлы фронтенда
           cp -r custom_components/city_dashboard/www/* hacs-release/custom_components/city_dashboard/www/
@@ -87,14 +65,6 @@ jobs:
           # Создаем архив
           cd hacs-release
           zip -r ../city_dashboard.zip ./*
-
-      - name: Commit version bump
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add custom_components/city_dashboard/manifest.json
-          git commit -m "Bump version to ${{ env.version }}"
-          git push origin main
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
