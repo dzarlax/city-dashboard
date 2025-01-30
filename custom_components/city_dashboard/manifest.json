@@ -1,11 +1,13 @@
 {
   "domain": "city_dashboard",
   "name": "City Dashboard",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "config_flow": true,
   "documentation": "https://github.com/dzarlax/city-dashboard",
   "dependencies": [],
-  "codeowners": ["@dzarlax"],
+  "codeowners": [
+    "@dzarlax"
+  ],
   "requirements": [],
   "iot_class": "cloud_polling",
   "homeassistant": "2023.8.0",
