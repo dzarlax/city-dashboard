@@ -71,13 +71,13 @@ jobs:
         run: |
           mkdir -p hacs-release/custom_components/city_dashboard
           mkdir -p hacs-release/www/community/city_dashboard
-
+      
           # Копируем файлы компонента
-          cp -r custom_components/city_dashboard/* hacs-release/custom_components/city_dashboard/
-
+          cp custom_components/city_dashboard/* hacs-release/custom_components/city_dashboard/
+      
           # Копируем собранные файлы
           cp -r www/community/city_dashboard/* hacs-release/www/community/city_dashboard/
-
+      
           # Упаковываем релиз
           tar -czvf hacs-release.tar.gz -C hacs-release .
 
