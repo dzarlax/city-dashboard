@@ -11,7 +11,21 @@ class CityDashboardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         """Step to configure integration via UI."""
+        errors = {}
+
         if user_input is not None:
+            # Проверяем, если выбран ручной ввод координат, заданы ли значения
+            if user_input["geo_source"] == "manual":
+                if not user_input.get("latitude") or not user_input.get("longitude"):
+                    errors["base"] = "invalid_coordinates"
+                else:
+                    return self.async_create_entry(
+                        title="City Dashboard",
+                        data={},
+                        options=user_input
+                    )
+
+            # Если выбран Home Assistant, просто создаем запись
             return self.async_create_entry(
                 title="City Dashboard",
                 data={},
@@ -30,6 +44,7 @@ class CityDashboardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional("add_sidebar", default=True): bool,
             }
         ),
+            errors=errors
         )
 
     @staticmethod

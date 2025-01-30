@@ -1,11 +1,14 @@
 import os
 import shutil
+import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 DOMAIN = "city_dashboard"
 PANEL_URL = "/local/city_dashboard/dashboard.js"
 HACS_PANEL_URL = "/hacsfiles/city_dashboard/dashboard.js"
+
+_LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up City Dashboard from a config entry."""
@@ -23,15 +26,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hacs_js = os.path.join(hacs_path, "dashboard.js")
 
     if not os.path.exists(source_js):
-        hass.components.logger.error(f"Dashboard.js is missing: {source_js}")
+        _LOGGER.error(f"Dashboard.js is missing: {source_js}")
         return False
 
-    # Используем асинхронный копи-файл
+    # Используем асинхронное копирование файлов
     try:
         await hass.async_add_executor_job(shutil.copyfile, source_js, dest_js)
         await hass.async_add_executor_job(shutil.copyfile, source_js, hacs_js)
     except Exception as e:
-        hass.components.logger.error(f"Failed to copy dashboard.js: {e}")
+        _LOGGER.error(f"Failed to copy dashboard.js: {e}")
         return False
 
     panel_url = HACS_PANEL_URL if os.path.exists(hacs_js) else PANEL_URL
