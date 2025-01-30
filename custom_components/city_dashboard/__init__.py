@@ -3,14 +3,13 @@ import shutil
 import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.components.lovelace.resources import ResourceStorageCollection
 
 DOMAIN = "city_dashboard"
 PANEL_URL = "/local/city_dashboard/dashboard.js"
 HACS_PANEL_URL = "/hacsfiles/city_dashboard/dashboard.js"
 
-REACT_CDN = "/hacsfiles/react/react.production.min.js"
-REACT_DOM_CDN = "/hacsfiles/react/react-dom.production.min.js"
+REACT_CDN = "https://unpkg.com/react@17/umd/react.production.min.js"
+REACT_DOM_CDN = "https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,18 +42,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         _LOGGER.error(f"Failed to copy dashboard.js: {e}")
         return False
 
-    # Новый способ регистрации статических путей
-    await hass.http.async_register_static_paths([
-        {"path": REACT_CDN, "local_path": "https://unpkg.com/react@17/umd/react.production.min.js", "cache": False},
-        {"path": REACT_DOM_CDN, "local_path": "https://unpkg.com/react-dom@17/umd/react-dom.production.min.js", "cache": False},
+    # Автоматическое добавление ресурсов в Lovelace
+    await add_lovelace_resources(hass, [
+        {"url": "https://unpkg.com/react@17/umd/react.production.min.js", "res_type": "module"},
+        {"url": "https://unpkg.com/react-dom@17/umd/react-dom.production.min.js", "res_type": "module"},
+        {"url": "/hacsfiles/city_dashboard/dashboard.js", "res_type": "module"},
     ])
 
-    # Регистрация ресурсов Lovelace
-    await add_lovelace_resources(hass, [
-        {"url": REACT_CDN, "type": "module"},
-        {"url": REACT_DOM_CDN, "type": "module"},
-        {"url": PANEL_URL, "type": "module"}
-    ])
+    # ✅ Регистрируем встроенную панель в боковом меню
+    panel_path = "/local/city_dashboard/index.html"
+    if not os.path.exists(hass.config.path("www/community/city_dashboard/index.html")):
+        panel_path = "/hacsfiles/city_dashboard/index.html"
+
+    hass.components.frontend.async_register_built_in_panel(
+        component_name="iframe",
+        sidebar_title="City Dashboard",
+        sidebar_icon="mdi:city",
+        frontend_url_path="city_dashboard_panel",
+        config={"url": panel_path},
+        require_admin=False,
+    )
 
     return True
 
@@ -73,5 +80,8 @@ async def add_lovelace_resources(hass: HomeAssistant, resources: list):
     existing_resources = [item["url"] for item in resource_storage.async_items()]
     for resource in resources:
         if resource["url"] not in existing_resources:
-            await resource_storage.async_create_item(resource)
+            await resource_storage.async_create_item({
+                "url": resource["url"],
+                "res_type": "module"  # Добавляем res_type
+            })
             _LOGGER.info(f"Added Lovelace resource: {resource['url']}")

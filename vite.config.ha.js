@@ -10,20 +10,21 @@ export default defineConfig({
   build: {
     outDir: isHACS ? 'www/community/city_dashboard' : 'dist',
     emptyOutDir: true,
-    base: isHACS ? '/hacsfiles/city_dashboard/' : '/',
+    base: isHACS ? '/hacsfiles/city_dashboard/' : '/',  // ✅ Устанавливаем корректный base
+    assetsDir: 'assets',
     rollupOptions: {
       input: {
         dashboard: 'src/client/main.jsx'
       },
-      external: ['react', 'react-dom'], // Исключаем React
+      external: ['react', 'react-dom'], // ✅ Исключаем React, чтобы избежать дублирования
       output: {
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM'
         },
         entryFileNames: isDev ? '[name].js' : 'dashboard.js',
-        assetFileNames: 'assets/[name].[ext]',
-        chunkFileNames: 'assets/[name].js'
+        assetFileNames: 'assets/[name].[ext]',  // ✅ Исправленный путь для ассетов
+        chunkFileNames: 'assets/[name].js'      // ✅ Исправленный путь для чанков
       }
     }
   }
