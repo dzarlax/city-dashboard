@@ -8,6 +8,9 @@ DOMAIN = "city_dashboard"
 PANEL_URL = "/local/city_dashboard/dashboard.js"
 HACS_PANEL_URL = "/hacsfiles/city_dashboard/dashboard.js"
 
+REACT_CDN = "https://unpkg.com/react@17/umd/react.production.min.js"
+REACT_DOM_CDN = "https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"
+
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
@@ -39,17 +42,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         _LOGGER.error(f"Failed to copy dashboard.js: {e}")
         return False
 
-    # Регистрация панели
-    panel_url = HACS_PANEL_URL if os.path.exists(hacs_js) else PANEL_URL
+    # Регистрация ресурсов
+    lovelace_resources = [
+        {"url": REACT_CDN, "type": "module"},
+        {"url": REACT_DOM_CDN, "type": "module"},
+        {"url": PANEL_URL, "type": "module"}
+    ]
 
-    if entry.options.get("add_sidebar", True):
-        _LOGGER.info(f"Registering panel with URL: {panel_url}")
-        hass.components.frontend.async_register_built_in_panel(
-            component_name="iframe",
-            sidebar_title="City Dashboard",
-            sidebar_icon="mdi:city",
-            config={"url": panel_url},
-            require_admin=False,
-        )
+    try:
+        for resource in lovelace_resources:
+            hass.http.register_static_path(resource["url"], resource["url"], cache_headers=False)
+            _LOGGER.info(f"Registered Lovelace resource: {resource['url']}")
+
+        # Добавляем ресурсы в Lovelace
+        await add_lovelace_resources(hass, lovelace_resources)
+    except Exception as e:
+        _LOGGER.error(f"Failed to register Lovelace resources: {e}")
+        return False
 
     return True
+
+
+async def add_lovelace_resources(hass: HomeAssistant, resources: list):
+    """Добавить ресурсы в Lovelace."""
+    resource_storage = hass.data.get("lovelace.resources")
+    if resource_storage is None:
+        _LOGGER.warning("Lovelace resources storage not found.")
+        return
+
+    existing_resources = [item["url"] for item in resource_storage.async_items()]
+    for resource in resources:
+        if resource["url"] not in existing_resources:
+            await resource_storage.async_create_item(resource)
+            _LOGGER.info(f"Added Lovelace resource: {resource['url']}")
