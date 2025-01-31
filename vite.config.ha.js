@@ -16,11 +16,9 @@ export default defineConfig({
       input: {
         dashboard: 'src/client/main.jsx',
       },
-      external: ['react', 'react-dom'], // ✅ React не включается в сборку, т.к. Home Assistant его подгружает
+      external: [], // ✅ React не включается в сборку, т.к. Home Assistant его подгружает
       output: {
         globals: {
-          react: 'React',
-          'react-dom': 'ReactDOM',
         },
         entryFileNames: 'dashboard.js',  // ✅ Главный JS-файл
         assetFileNames: 'assets/[name].[ext]',  // ✅ CSS и шрифты идут в /assets/
