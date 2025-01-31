@@ -21,7 +21,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up City Dashboard from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     
-    # Register dashboard panel
     if entry.options.get("add_sidebar", True):
         _LOGGER.debug("Registering panel for City Dashboard")
         frontend.async_register_built_in_panel(
@@ -34,15 +33,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config={
                 "_panel_custom": {
                     "name": "city-dashboard",
-                    "module_url": "/local/community/city_dashboard/dashboard.js",
+                    "module_url": "/hacsfiles/city_dashboard/dashboard.js",
                     "embed_iframe": True,
-                    "trust_external": False,
-                    "resources": {
-                        "js": [
-                            "https://unpkg.com/react@18/umd/react.production.min.js",
-                            "https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
-                        ]
-                    }
+                    "trust_external": True
                 }
             }
         )
