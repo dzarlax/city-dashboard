@@ -36,7 +36,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "_panel_custom": {
                     "name": "city-dashboard",
                     "module_url": "/local/community/city_dashboard/dashboard.js",
-                    "embed_iframe": True,
+                    "embed_iframe": False,
                     "trust_external": True
                 }
             }
