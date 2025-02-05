@@ -48,21 +48,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         www_path = Path(hass.config.path("www")) / "community" / "city_dashboard"
         www_path.mkdir(parents=True, exist_ok=True)
         
+        _LOGGER.debug("Component path: %s", component_path)
+        
         # Сначала проверяем локальную www директорию
         component_www = component_path / "www"
+        _LOGGER.debug("Checking local www path: %s", component_www)
+        
         if not component_www.exists():
             # Если локальной нет, используем dist директорию (при разработке)
             component_www = Path(__file__).parent.parent.parent / "dist"
+            _LOGGER.debug("Checking dist path: %s", component_www)
             if not component_www.exists():
+                _LOGGER.error("Neither www nor dist directory exists")
+                _LOGGER.error("Current directory contents: %s", 
+                    list(Path(__file__).parent.parent.parent.iterdir()))
                 raise HomeAssistantError(f"Missing www directory in both locations: {component_www}")
 
         # Copy dashboard.js
         dashboard_src = component_www / "dashboard.js"
         dashboard_dst = www_path / "dashboard.js"
+        _LOGGER.debug("Looking for dashboard.js at: %s", dashboard_src)
         if dashboard_src.exists():
-            _LOGGER.debug("Copying dashboard.js from %s to %s", dashboard_src, dashboard_dst)
+            _LOGGER.debug("Found dashboard.js, copying to: %s", dashboard_dst)
             shutil.copy2(dashboard_src, dashboard_dst)
         else:
+            _LOGGER.error("Directory contents: %s", list(component_www.iterdir()))
             raise HomeAssistantError(f"Missing required file: {dashboard_src}")
 
         # Copy assets
