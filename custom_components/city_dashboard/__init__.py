@@ -48,9 +48,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         www_path = Path(hass.config.path("www")) / "community" / "city_dashboard"
         www_path.mkdir(parents=True, exist_ok=True)
         
+        # Сначала проверяем локальную www директорию
         component_www = component_path / "www"
         if not component_www.exists():
-            raise HomeAssistantError(f"Missing www directory: {component_www}")
+            # Если локальной нет, используем dist директорию (при разработке)
+            component_www = Path(__file__).parent.parent.parent / "dist"
+            if not component_www.exists():
+                raise HomeAssistantError(f"Missing www directory in both locations: {component_www}")
 
         # Copy dashboard.js
         dashboard_src = component_www / "dashboard.js"
