@@ -35,7 +35,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config={
                 "_panel_custom": {
                     "name": "city-dashboard",
-                    "module_url": "/hacsfiles/city_dashboard/dashboard.js",
+                    "module_url": "/local/community/city_dashboard/dashboard.js",
                     "embed_iframe": True,
                     "trust_external": True
                 }
@@ -74,11 +74,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         assets_src = component_www / "assets"
         assets_dst = www_path / "assets"
         if assets_src.exists():
-            _LOGGER.debug("Copying assets from %s to %s", assets_src, assets_dst)
+            _LOGGER.debug("Assets source directory contents: %s", list(assets_src.iterdir()))
             if assets_dst.exists():
                 shutil.rmtree(assets_dst)
             shutil.copytree(assets_src, assets_dst)
+            _LOGGER.debug("Assets destination directory contents: %s", list(assets_dst.iterdir()))
         else:
+            _LOGGER.error("Missing required directory: %s", assets_src)
+            _LOGGER.error("Component www contents: %s", list(component_www.iterdir()))
             raise HomeAssistantError(f"Missing required directory: {assets_src}")
 
     try:

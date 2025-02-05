@@ -4,10 +4,11 @@ import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 
 const isHACS = process.env.HACS === 'true';
+const base = isHACS ? '/local/community/city_dashboard/' : '/';
 
 export default defineConfig({
   plugins: [react()],
-  base: isHACS ? '/hacsfiles/city_dashboard/' : '/',
+  base: base,
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -17,7 +18,14 @@ export default defineConfig({
       output: {
         entryFileNames: 'dashboard.js',
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        assetFileNames: (assetInfo) => {
+          // Сохраняем структуру для CSS файлов
+          if (assetInfo.name.endsWith('.css')) {
+            return 'assets/[name]-[hash][extname]';
+          }
+          // Для остальных файлов сохраняем оригинальную структуру
+          return 'assets/[name][extname]';
+        },
       },
     },
     sourcemap: true,
@@ -40,6 +48,6 @@ export default defineConfig({
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
-    'process.env.PUBLIC_URL': JSON.stringify('/hacsfiles/city_dashboard'),
+    'process.env.PUBLIC_URL': JSON.stringify(base),
   },
 });

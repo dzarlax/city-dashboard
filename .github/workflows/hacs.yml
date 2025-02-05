@@ -58,6 +58,11 @@ jobs:
           rm -rf custom_components/city_dashboard/www/*
           # Копируем собранные файлы
           cp -r dist/* custom_components/city_dashboard/www/
+          # Проверяем содержимое
+          echo "Contents of www directory:"
+          ls -la custom_components/city_dashboard/www/
+          echo "Contents of assets directory:"
+          ls -la custom_components/city_dashboard/www/assets/
 
       - name: Prepare HACS package
         run: |
