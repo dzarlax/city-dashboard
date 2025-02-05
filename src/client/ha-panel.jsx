@@ -5,6 +5,26 @@ import './App.css'
 import App from './App'
 
 class CityDashboard extends HTMLElement {
+  constructor() {
+    super();
+    this._config = {};
+  }
+
+  // Получаем конфигурацию от Home Assistant
+  setConfig(config) {
+    this._config = config;
+  }
+
+  // Получаем объект hass от Home Assistant
+  set hass(hass) {
+    this._hass = hass;
+    window.hassConnection = Promise.resolve({
+      config: hass.config,
+      auth: hass.auth,
+      connection: hass.connection,
+    });
+  }
+
   connectedCallback() {
     const root = createRoot(this);
     root.render(
