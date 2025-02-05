@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Добавляем специфичные стили для Home Assistant */
+city-dashboard {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+/* Наследуем цвета темы Home Assistant */
+:root {
+  --primary-text-color: var(--primary-text-color, #212121);
+  --primary-background-color: var(--primary-background-color, #fafafa);
+}
+
+/* Добавляем поддержку темной темы */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary-text-color: var(--primary-text-color, #e1e1e1);
+    --primary-background-color: var(--primary-background-color, #111111);
+  }
+} 

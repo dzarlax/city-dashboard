@@ -24,6 +24,14 @@ export default defineConfig({
     cssCodeSplit: false,
     cssMinify: true,
   },
+  css: {
+    postcss: {
+      plugins: [
+        require('tailwindcss'),
+        require('autoprefixer'),
+      ],
+    },
+  },
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
     'process.env.PUBLIC_URL': JSON.stringify('/hacsfiles/city_dashboard'),
