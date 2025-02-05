@@ -29,7 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass,
             "custom",
             sidebar_title=NAME,
-            sidebar_icon="mdi:view-dashboard",
+            sidebar_icon="/local/community/city_dashboard/dash.svg",
             frontend_url_path="city-dashboard",
             require_admin=False,
             config={
