@@ -64,16 +64,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     list(Path(__file__).parent.parent.parent.iterdir()))
                 raise HomeAssistantError(f"Missing www directory in both locations: {component_www}")
 
-        # Copy dashboard.js
-        dashboard_src = component_www / "dashboard.js"
-        dashboard_dst = www_path / "dashboard.js"
-        _LOGGER.debug("Looking for dashboard.js at: %s", dashboard_src)
-        if dashboard_src.exists():
-            _LOGGER.debug("Found dashboard.js, copying to: %s", dashboard_dst)
-            shutil.copy2(dashboard_src, dashboard_dst)
-        else:
-            _LOGGER.error("Directory contents: %s", list(component_www.iterdir()))
-            raise HomeAssistantError(f"Missing required file: {dashboard_src}")
+        # Копируем все файлы из корня
+        for file in component_www.glob('*.*'):
+            if file.is_file():
+                _LOGGER.debug("Copying file %s to %s", file, www_path / file.name)
+                shutil.copy2(file, www_path / file.name)
 
         # Copy assets
         assets_src = component_www / "assets"

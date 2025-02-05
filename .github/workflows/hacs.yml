@@ -52,7 +52,7 @@ jobs:
 
       - name: Build frontend
         run: |
-          HACS=true npm run build
+          npm run build:hacs
           # Создаем www директорию и очищаем её
           mkdir -p custom_components/city_dashboard/www
           rm -rf custom_components/city_dashboard/www/*
