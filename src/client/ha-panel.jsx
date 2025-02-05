@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import './ha-panel.css'  // Используем специальный CSS для HA
+import './styles/ha.css'  // Импортируем единый CSS файл
 import './App.css'
 import App from './App'
 
