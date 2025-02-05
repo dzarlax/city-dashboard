@@ -12,13 +12,11 @@ export default defineConfig({
     emptyOutDir: true,
     assetsDir: 'assets',
     rollupOptions: {
-      input: {
-        dashboard: 'src/client/main.jsx',
-      },
+      input: 'src/client/main.jsx',
       output: {
         entryFileNames: 'dashboard.js',
-        assetFileNames: 'assets/[name].[ext]',
-        chunkFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
       },
     },
   },
