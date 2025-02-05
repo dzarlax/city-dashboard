@@ -1,7 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import styles from './ha-panel.css?inline'  // Импортируем CSS как строку
-import App from './App'
+import HaDashboard from './HaDashboard';
 
 class CityDashboard extends HTMLElement {
   constructor() {
@@ -13,22 +12,14 @@ class CityDashboard extends HTMLElement {
     
     // Создаем контейнер для React
     const container = document.createElement('div');
-    container.id = 'root';
+    container.style.height = '100%';
     this.shadowRoot.appendChild(container);
-    
-    // Добавляем стили
-    const style = document.createElement('style');
-    style.textContent = styles;  // Используем импортированные стили
-    this.shadowRoot.appendChild(style);
-    
-    // Проверяем загрузку стилей
-    console.debug('Styles loaded:', styles.length, 'bytes');
     
     // Рендерим React в контейнер
     const root = createRoot(container);
     root.render(
       <React.StrictMode>
-        <App />
+        <HaDashboard />
       </React.StrictMode>
     );
   }

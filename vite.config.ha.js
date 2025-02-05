@@ -16,17 +16,11 @@ export default defineConfig({
       output: {
         entryFileNames: 'dashboard.js',
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: (assetInfo) => {
-          // Все ассеты кроме JS помещаем в assets
-          if (!assetInfo.name.endsWith('.js')) {
-            return 'assets/[name][extname]';
-          }
-          return '[name][extname]';
-        },
       },
     },
     sourcemap: true,
     minify: 'esbuild',
+    cssInject: true, // Встраиваем CSS в JS
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
