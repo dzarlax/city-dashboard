@@ -5,25 +5,25 @@ import envCompatible from 'vite-plugin-env-compatible';
 const isHACS = process.env.HACS === 'true';
 
 export default defineConfig({
-  plugins: [react(), envCompatible()],
+  plugins: [react()],
   base: isHACS ? '/hacsfiles/city_dashboard/' : '/',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     assetsDir: 'assets',
     rollupOptions: {
-      input: 'src/client/main.jsx',
+      input: 'src/client/ha-panel.jsx',
       output: {
         entryFileNames: 'dashboard.js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]'
       },
     },
-  },
-  optimizeDeps: {
-    include: ['react', 'react-dom']
+    sourcemap: true,
+    minify: 'esbuild',
   },
   define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+    'process.env.NODE_ENV': JSON.stringify('production'),
+    'process.env.PUBLIC_URL': JSON.stringify('/hacsfiles/city_dashboard'),
   },
 });
