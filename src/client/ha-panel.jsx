@@ -1,7 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import './styles/ha.css'  // Импортируем единый CSS файл
-import './App.css'
+import './ha-panel.css'  // Используем единый файл для HA
 import App from './App'
 
 class CityDashboard extends HTMLElement {

@@ -1,12 +1,15 @@
+/* Сначала базовые стили Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Добавляем специфичные стили для Home Assistant */
+/* Затем базовые стили для Home Assistant панели */
 city-dashboard {
   display: block;
   height: 100%;
   width: 100%;
+  background-color: var(--primary-background-color);
+  color: var(--primary-text-color);
 }
 
 /* Наследуем цвета темы Home Assistant */
@@ -15,10 +18,20 @@ city-dashboard {
   --primary-background-color: var(--primary-background-color, #fafafa);
 }
 
-/* Добавляем поддержку темной темы */
+/* Поддержка темной темы */
 @media (prefers-color-scheme: dark) {
   :root {
     --primary-text-color: var(--primary-text-color, #e1e1e1);
     --primary-background-color: var(--primary-background-color, #111111);
   }
-} 
+}
+
+/* И в конце наши кастомные стили */
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* ... остальные стили из App.css ... */ 

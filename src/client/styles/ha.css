@@ -8,5 +8,5 @@ city-dashboard {
 }
 
 /* Импортируем все остальные стили */
-@import '../index.css';
-@import '../App.css'; 
+@import '../index.css';   // Сначала Tailwind
+@import '../App.css';     // Потом наши стили 
