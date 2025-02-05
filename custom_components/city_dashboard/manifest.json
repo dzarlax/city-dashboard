@@ -1,7 +1,7 @@
 {
   "domain": "city_dashboard",
   "name": "City Dashboard",
-  "version": "0.1.56",
+  "version": "0.1.57",
   "config_flow": true,
   "documentation": "https://github.com/dzarlax/city-dashboard",
   "dependencies": [
