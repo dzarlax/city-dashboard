@@ -1,29 +1,36 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import TransportCard from './TransportCard';
+import { getHomeAssistantConfig } from './utils/homeAssistant';
 
 class CityDashboardPanel extends HTMLElement {
   constructor() {
     super();
-    this._config = {};
+    this.attachShadow({ mode: 'open' });
+    this.config = null;
   }
 
-  connectedCallback() {
-    if (!this.shadowRoot) {
-      this.attachShadow({ mode: 'open' });
+  async connectedCallback() {
+    // Получаем конфигурацию
+    this.config = await getHomeAssistantConfig();
 
-      const root = document.createElement('div');
-      root.style.cssText = `
-        height: 100%;
-        padding: var(--ha-card-padding, 16px);
-      `;
-      this.shadowRoot.appendChild(root);
+    // Создаем контейнер
+    const container = document.createElement('div');
+    container.style.cssText = `
+      height: 100%;
+      padding: 16px;
+      background: var(--primary-background-color);
+      color: var(--primary-text-color);
+    `;
+    this.shadowRoot.appendChild(container);
 
-      createRoot(root).render(
-        <TransportCard />
-      );
-    }
+    // Рендерим React компонент
+    const root = createRoot(container);
+    root.render(<TransportCard config={this.config} />);
   }
 }
 
-customElements.define('city-dashboard-panel', CityDashboardPanel); 
+// Регистрируем элемент
+if (!customElements.get('city-dashboard-panel')) {
+  customElements.define('city-dashboard-panel', CityDashboardPanel);
+} 

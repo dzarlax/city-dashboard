@@ -29,7 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass,
             "custom",
             sidebar_title=NAME,
-            sidebar_icon="/local/community/city_dashboard/dash.svg",
+            sidebar_icon="mdi:bus",
             frontend_url_path="city-dashboard",
             require_admin=False,
             config={
@@ -42,41 +42,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             }
         )
 
-    # File operations in executor
-    def copy_files():
-        component_path = Path(__file__).parent
-        www_path = Path(hass.config.path("www")) / "community" / "city_dashboard"
-        www_path.mkdir(parents=True, exist_ok=True)
-        
-        _LOGGER.debug("Component path: %s", component_path)
-        
-        # Сначала проверяем dist директорию (при разработке)
-        component_www = Path(__file__).parent.parent.parent / "dist"
-        _LOGGER.debug("Checking dist path: %s", component_www)
-        
-        if not component_www.exists():
-            component_www = component_path / "www"
-        
-        # Копируем dash.svg из корня проекта
-        dash_src = Path(__file__).parent.parent.parent / "dash.svg"
-        if dash_src.exists():
-            _LOGGER.debug("Copying dash.svg from %s to %s", dash_src, www_path / "dash.svg")
-            shutil.copy2(dash_src, www_path / "dash.svg")
-        else:
-            _LOGGER.error("Icon file not found: %s", dash_src)
-
-        # Копируем все файлы из корня
-        for file in component_www.glob('*.*'):
-            if file.is_file():
-                _LOGGER.debug("Copying file %s to %s", file, www_path / file.name)
-                shutil.copy2(file, www_path / file.name)
-
-    try:
-        await hass.async_add_executor_job(copy_files)
-    except Exception as err:
-        _LOGGER.error("Failed to copy files: %s", err)
-        return False
-
     # Store configuration
     hass.data[DOMAIN][entry.entry_id] = {
         "options": entry.options,
@@ -86,21 +51,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register update listener
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
-    # Load platforms
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    
-    if unload_ok:
-        if entry.options.get("add_sidebar", True):
-            frontend.async_remove_panel(hass, "city-dashboard")
-        hass.data[DOMAIN].pop(entry.entry_id)
-
-    return unload_ok
+    if entry.options.get("add_sidebar", True):
+        frontend.async_remove_panel(hass, "city-dashboard")
+    hass.data[DOMAIN].pop(entry.entry_id)
+    return True
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle options update."""

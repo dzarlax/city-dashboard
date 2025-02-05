@@ -1,5 +1,5 @@
 import React from 'react';
-import Dashboard from './Dashboard';
+import Dashboard from './Dashboard.jsx';
 
 // Минимальные стили для интеграции
 const styles = `
