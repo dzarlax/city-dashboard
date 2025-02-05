@@ -54,6 +54,8 @@ jobs:
         run: |
           HACS=true npm run build
           mkdir -p custom_components/city_dashboard/www
+          # Очищаем www директорию перед копированием
+          rm -rf custom_components/city_dashboard/www/*
           cp -r dist/* custom_components/city_dashboard/www/
 
       - name: Prepare HACS package
