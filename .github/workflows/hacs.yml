@@ -53,9 +53,10 @@ jobs:
       - name: Build frontend
         run: |
           HACS=true npm run build
+          # Создаем www директорию и очищаем её
           mkdir -p custom_components/city_dashboard/www
-          # Очищаем www директорию перед копированием
           rm -rf custom_components/city_dashboard/www/*
+          # Копируем собранные файлы
           cp -r dist/* custom_components/city_dashboard/www/
 
       - name: Prepare HACS package
