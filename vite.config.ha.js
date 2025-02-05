@@ -18,7 +18,7 @@ export default defineConfig({
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: (assetInfo) => {
           if (assetInfo.name.endsWith('.css')) {
-            return 'assets/style.[hash].css';  // Фиксированное имя для CSS
+            return 'assets/style.css';  // Фиксированное имя без хеша
           }
           return 'assets/[name][extname]';
         },

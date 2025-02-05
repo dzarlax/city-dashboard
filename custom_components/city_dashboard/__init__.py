@@ -37,7 +37,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     "name": "city-dashboard",
                     "module_url": "/local/community/city_dashboard/dashboard.js",
                     "embed_iframe": True,
-                    "trust_external": True
+                    "trust_external": True,
+                    "css_url": ["/local/community/city_dashboard/assets/style.css"]
                 }
             }
         )
@@ -78,14 +79,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if assets_dst.exists():
                 shutil.rmtree(assets_dst)
             shutil.copytree(assets_src, assets_dst)
-            _LOGGER.debug("Assets destination directory contents: %s", list(assets_dst.iterdir()))
             
             # Проверяем наличие CSS файла
-            css_files = list(assets_dst.glob('*.css'))
-            if css_files:
-                _LOGGER.debug("Found CSS files: %s", css_files)
+            css_file = assets_dst / "style.css"
+            if css_file.exists():
+                _LOGGER.debug("Found CSS file: %s", css_file)
             else:
-                _LOGGER.warning("No CSS files found in assets directory")
+                _LOGGER.warning("CSS file not found at: %s", css_file)
+                _LOGGER.warning("Assets directory contents: %s", list(assets_dst.iterdir()))
         else:
             _LOGGER.error("Missing required directory: %s", assets_src)
             _LOGGER.error("Component www contents: %s", list(component_www.iterdir()))
