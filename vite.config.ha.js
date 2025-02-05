@@ -10,15 +10,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    assetsDir: '',
+    assetsDir: 'assets',
     rollupOptions: {
       input: {
         dashboard: 'src/client/main.jsx',
       },
       output: {
         entryFileNames: 'dashboard.js',
-        assetFileNames: '[name].[ext]',
-        chunkFileNames: '[name].js',
+        assetFileNames: 'assets/[name].[ext]',
+        chunkFileNames: 'assets/[name].js',
       },
     },
   },
