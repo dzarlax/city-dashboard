@@ -11,12 +11,12 @@ class CityDashboard extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     
     // Создаем контейнер для React
-    const container = document.createElement('div');
+    const container = document.createElement('ha-card');
     container.style.cssText = `
+      display: block;
       height: 100%;
-      width: 100%;
-      background-color: var(--primary-background-color);
-      color: var(--primary-text-color);
+      margin: 0;
+      background: var(--ha-card-background, var(--card-background-color));
     `;
     this.shadowRoot.appendChild(container);
     

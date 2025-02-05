@@ -1,107 +1,62 @@
 import React from 'react';
 import Dashboard from './Dashboard';
 
-// Стили для интеграции с Home Assistant
+// Минимальные стили для интеграции
 const styles = `
-  ha-panel-custom {
-    height: 100%;
-    width: 100%;
-  }
-
-  city-dashboard {
+  :host {
     display: block;
     height: 100%;
-    width: 100%;
   }
 
-  /* Базовые стили Tailwind */
-  @tailwind base;
-  @tailwind components;
-  @tailwind utilities;
-
-  /* Кастомные стили для компонентов */
-  .dashboard-container {
-    padding: 16px;
-    max-width: 1280px;
-    margin: 0 auto;
-  }
-
-  .station-card {
-    background: var(--card-background-color, #fff);
-    border: 1px solid var(--divider-color, #e5e7eb);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 16px;
-  }
-
-  .station-title {
-    font-size: 1.125rem;
-    font-weight: 500;
-    color: var(--primary-text-color);
-    margin-bottom: 8px;
-  }
-
-  .station-info {
-    color: var(--secondary-text-color);
-    font-size: 0.875rem;
-  }
-
-  .weather-section {
-    background: var(--card-background-color, #fff);
-    border: 1px solid var(--divider-color, #e5e7eb);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 24px;
-  }
-
-  .weather-title {
-    font-size: 1.25rem;
-    font-weight: 500;
-    color: var(--primary-text-color);
-    margin-bottom: 16px;
-  }
-
-  /* Переопределение Tailwind классов */
-  .bg-white {
-    background-color: var(--card-background-color, #fff) !important;
-  }
-
-  .text-gray-800 {
-    color: var(--primary-text-color) !important;
-  }
-
-  .text-gray-500 {
-    color: var(--secondary-text-color) !important;
-  }
-
-  .border-gray-200 {
-    border-color: var(--divider-color, #e5e7eb) !important;
-  }
-
-  .shadow-sm {
-    box-shadow: var(--ha-card-box-shadow, 0 1px 3px rgba(0,0,0,0.12)) !important;
-  }
-
-  /* Исправление размеров контейнера */
-  #root {
+  .ha-dashboard {
     height: 100%;
-    width: 100%;
-    max-width: none;
-    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    padding: var(--ha-card-padding, 16px);
+    background: var(--ha-card-background, var(--card-background-color));
   }
 
-  .min-h-screen {
-    min-height: 100%;
-    background-color: var(--primary-background-color);
+  .ha-card {
+    background: var(--ha-card-background, var(--card-background-color));
+    border-radius: var(--ha-card-border-radius, 4px);
+    box-shadow: var(--ha-card-box-shadow, none);
+    color: var(--primary-text-color);
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--ha-card-margin, 16px);
+    padding: var(--ha-card-padding, 16px);
+  }
+
+  .ha-card-header {
+    color: var(--ha-card-header-color, var(--primary-text-color));
+    font-family: var(--ha-card-header-font-family, inherit);
+    font-size: var(--ha-card-header-font-size, 24px);
+    font-weight: var(--ha-card-header-font-weight, normal);
+    margin-bottom: var(--ha-card-margin, 16px);
+  }
+
+  .ha-card-content {
+    color: var(--primary-text-color);
+    padding: var(--ha-card-padding, 16px);
   }
 `;
 
+// Обертка для Dashboard с нативными стилями HA
 const HaDashboard = () => {
   return (
-    <div className="dashboard-container">
+    <ha-card>
       <style>{styles}</style>
-      <Dashboard />
-    </div>
+      <div className="ha-dashboard">
+        <div className="ha-card">
+          <div className="ha-card-header">
+            City Dashboard
+          </div>
+          <div className="ha-card-content">
+            <Dashboard />
+          </div>
+        </div>
+      </div>
+    </ha-card>
   );
 };
 
