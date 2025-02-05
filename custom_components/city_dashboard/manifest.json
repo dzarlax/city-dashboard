@@ -7,7 +7,7 @@
   "dependencies": [
     "frontend"
   ],
-  "frontend_js_module": "dashboard.js",
+  "frontend_js_module": "HAdashboard.js",
   "translations": [
     "en"
   ],
