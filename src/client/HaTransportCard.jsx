@@ -108,7 +108,9 @@ const HaTransportCard = ({ config }) => {
         })));
       }));
 
-      setStops(allStops.sort((a, b) => a.distance - b.distance));
+      setStops(allStops.sort((a, b) => 
+        parseFloat(a.distance) - parseFloat(b.distance)
+      ));
       setLoading(false);
     } catch (error) {
       console.error('Error fetching stops:', error);
@@ -124,19 +126,46 @@ const HaTransportCard = ({ config }) => {
   }, [fetchStops]);
 
   if (loading) {
-    return <div>Загрузка...</div>;
+    return (
+      <div style={{ padding: '16px', color: 'var(--primary-text-color)' }}>
+        Загрузка...
+      </div>
+    );
   }
 
   if (error) {
-    return <div>Ошибка: {error}</div>;
+    return (
+      <div style={{ 
+        padding: '16px', 
+        color: 'var(--error-color, #db4437)',
+        backgroundColor: 'var(--error-background, rgba(219, 68, 55, 0.1))',
+        borderRadius: '4px',
+        margin: '8px 0'
+      }}>
+        Ошибка: {error}
+      </div>
+    );
   }
 
   if (stops.length === 0) {
-    return <div>Остановки не найдены</div>;
+    return (
+      <div style={{ 
+        padding: '16px',
+        color: 'var(--secondary-text-color)',
+        textAlign: 'center'
+      }}>
+        Остановки не найдены в радиусе {config?.radius || 500}м
+      </div>
+    );
   }
 
   return (
-    <div className="transport-list">
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px',
+      padding: '8px'
+    }}>
       {stops.map((stop) => (
         <BusStation key={`${stop.stopId}-${stop.city}`} {...stop} />
       ))}
