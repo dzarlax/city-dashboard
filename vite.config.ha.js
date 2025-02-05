@@ -1,13 +1,11 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import tailwindcss from 'tailwindcss';
-import autoprefixer from 'autoprefixer';
+import { baseConfig } from './vite.config.base';
 
 const isHACS = process.env.HACS === 'true';
 const base = isHACS ? '/local/community/city_dashboard/' : '/';
 
 export default defineConfig({
-  plugins: [react()],
+  ...baseConfig,
   base: base,
   build: {
     outDir: 'dist',
@@ -32,19 +30,6 @@ export default defineConfig({
     minify: 'esbuild',
     cssCodeSplit: false,
     cssMinify: true,
-  },
-  css: {
-    postcss: {
-      plugins: [
-        tailwindcss({
-          content: [
-            './src/client/**/*.{js,jsx}',
-            './src/client/**/*.css',
-          ],
-        }),
-        autoprefixer(),
-      ],
-    },
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
