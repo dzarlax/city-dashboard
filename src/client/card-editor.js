@@ -3,25 +3,63 @@ class CityDashboardCardEditor extends HTMLElement {
     this._config = config;
   }
 
-  get _name() {
-    return this._config.name || '';
+  connectedCallback() {
+    this.render();
   }
 
   render() {
     if (!this.shadowRoot) {
       this.attachShadow({ mode: 'open' });
-      this.shadowRoot.innerHTML = `
-        <form class="row">
-          <ha-formfield label="Name">
-            <ha-textfield
-              .value="${this._name}"
-              .configValue="${"name"}"
-              @input="${this._valueChanged}"
-            ></ha-textfield>
-          </ha-formfield>
-        </form>
-      `;
     }
+    
+    this.shadowRoot.innerHTML = `
+      <style>
+        .form-container {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        ha-textfield {
+          width: 100%;
+        }
+      </style>
+      <div class="form-container">
+        <ha-textfield
+          label="Name"
+          .value="${this._config.name || ''}"
+          .configValue="${"name"}"
+          @input="${this._valueChanged}"
+        ></ha-textfield>
+        
+        <ha-textfield
+          label="Latitude"
+          .value="${this._config.latitude || '44.8178131'}"
+          .configValue="${"latitude"}"
+          @input="${this._valueChanged}"
+        ></ha-textfield>
+        
+        <ha-textfield
+          label="Longitude"
+          .value="${this._config.longitude || '20.4568974'}"
+          .configValue="${"longitude"}"
+          @input="${this._valueChanged}"
+        ></ha-textfield>
+        
+        <ha-textfield
+          label="Search Radius (meters)"
+          .value="${this._config.radius || '500'}"
+          .configValue="${"radius"}"
+          @input="${this._valueChanged}"
+        ></ha-textfield>
+        
+        <ha-textfield
+          label="Update Interval (seconds)"
+          .value="${this._config.update_interval || '60'}"
+          .configValue="${"update_interval"}"
+          @input="${this._valueChanged}"
+        ></ha-textfield>
+      </div>
+    `;
   }
 
   _valueChanged(ev) {
