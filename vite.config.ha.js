@@ -17,18 +17,16 @@ export default defineConfig({
         entryFileNames: 'dashboard.js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: (assetInfo) => {
-          // Сохраняем структуру для CSS файлов
           if (assetInfo.name.endsWith('.css')) {
-            return 'assets/[name]-[hash][extname]';
+            return 'assets/style.[hash].css';  // Фиксированное имя для CSS
           }
-          // Для остальных файлов сохраняем оригинальную структуру
           return 'assets/[name][extname]';
         },
       },
     },
     sourcemap: true,
     minify: 'esbuild',
-    cssCodeSplit: false,
+    cssCodeSplit: true,  // Включаем разделение CSS
     cssMinify: true,
   },
   define: {

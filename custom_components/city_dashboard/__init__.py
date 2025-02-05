@@ -79,6 +79,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 shutil.rmtree(assets_dst)
             shutil.copytree(assets_src, assets_dst)
             _LOGGER.debug("Assets destination directory contents: %s", list(assets_dst.iterdir()))
+            
+            # Проверяем наличие CSS файла
+            css_files = list(assets_dst.glob('*.css'))
+            if css_files:
+                _LOGGER.debug("Found CSS files: %s", css_files)
+            else:
+                _LOGGER.warning("No CSS files found in assets directory")
         else:
             _LOGGER.error("Missing required directory: %s", assets_src)
             _LOGGER.error("Component www contents: %s", list(component_www.iterdir()))
