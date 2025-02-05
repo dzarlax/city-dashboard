@@ -12,7 +12,12 @@ class CityDashboard extends HTMLElement {
     
     // Создаем контейнер для React
     const container = document.createElement('div');
-    container.style.height = '100%';
+    container.style.cssText = `
+      height: 100%;
+      width: 100%;
+      background-color: var(--primary-background-color);
+      color: var(--primary-text-color);
+    `;
     this.shadowRoot.appendChild(container);
     
     // Рендерим React в контейнер
