@@ -39,12 +39,15 @@ class CityDashboardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
             else:
                 # Используем координаты HA
-                user_input[CONF_LATITUDE] = self.hass.config.latitude
-                user_input[CONF_LONGITUDE] = self.hass.config.longitude
                 return self.async_create_entry(
                     title=NAME,
                     data={},
-                    options=user_input
+                    options={
+                        CONF_GEO_SOURCE: user_input[CONF_GEO_SOURCE],
+                        CONF_LATITUDE: self.hass.config.latitude,
+                        CONF_LONGITUDE: self.hass.config.longitude,
+                        CONF_ADD_SIDEBAR: user_input.get(CONF_ADD_SIDEBAR, True)
+                    }
                 )
 
         # Значения по умолчанию
@@ -96,7 +99,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     errors["base"] = "invalid_coordinates"
                 else:
                     return self.async_create_entry(title="", data=user_input)
-            return self.async_create_entry(title="", data=user_input)
+            else:
+                return self.async_create_entry(title="", data={
+                    CONF_GEO_SOURCE: user_input[CONF_GEO_SOURCE],
+                    CONF_LATITUDE: self.hass.config.latitude,
+                    CONF_LONGITUDE: self.hass.config.longitude,
+                    CONF_ADD_SIDEBAR: user_input.get(CONF_ADD_SIDEBAR, True)
+                })
 
         # Get current options or defaults
         current_config = self.config_entry.options
