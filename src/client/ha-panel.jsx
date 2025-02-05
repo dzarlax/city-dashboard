@@ -33,4 +33,4 @@ class CityDashboardPanel extends HTMLElement {
 // Регистрируем элемент
 if (!customElements.get('city-dashboard-panel')) {
   customElements.define('city-dashboard-panel', CityDashboardPanel);
-} 
+}
