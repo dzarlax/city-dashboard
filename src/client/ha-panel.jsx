@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import TransportCard from './TransportCard';
+import HaTransportCard from './HaTransportCard';
 import { getHomeAssistantConfig } from './utils/homeAssistant';
 
 class CityDashboardPanel extends HTMLElement {
@@ -26,7 +26,7 @@ class CityDashboardPanel extends HTMLElement {
 
     // Рендерим React компонент
     const root = createRoot(container);
-    root.render(<TransportCard config={this.config} />);
+    root.render(<HaTransportCard config={this.config} />);
   }
 }
 
