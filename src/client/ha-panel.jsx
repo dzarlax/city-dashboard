@@ -1,48 +1,88 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import HaDashboard from './HaDashboard';
+import TransportCard from './TransportCard';
 
-class CityDashboard extends HTMLElement {
+class CityDashboardCard extends HTMLElement {
   constructor() {
     super();
     this._config = {};
-    
-    // Создаем shadow DOM
-    this.attachShadow({ mode: 'open' });
-    
-    // Создаем контейнер для React
-    const container = document.createElement('ha-card');
-    container.style.cssText = `
-      display: block;
-      height: 100%;
-      margin: 0;
-      background: var(--ha-card-background, var(--card-background-color));
-    `;
-    this.shadowRoot.appendChild(container);
-    
-    // Рендерим React в контейнер
-    const root = createRoot(container);
-    root.render(
-      <React.StrictMode>
-        <HaDashboard />
-      </React.StrictMode>
-    );
+    this._hass = null;
   }
 
-  // Получаем конфигурацию от Home Assistant
   setConfig(config) {
     this._config = config;
   }
 
-  // Получаем объект hass от Home Assistant
   set hass(hass) {
     this._hass = hass;
-    window.hassConnection = Promise.resolve({
-      config: hass.config,
-      auth: hass.auth,
-      connection: hass.connection,
-    });
+    this._render();
+  }
+
+  _render() {
+    if (!this.shadowRoot) {
+      this.attachShadow({ mode: 'open' });
+      const card = document.createElement('ha-card');
+      card.header = this._config.name || 'Transport Info';
+      this.shadowRoot.appendChild(card);
+
+      const style = document.createElement('style');
+      style.textContent = `
+        .station-card {
+          padding: 16px;
+          border-bottom: 1px solid var(--divider-color);
+        }
+        .station-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .station-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 500;
+        }
+        .station-icon {
+          width: 20px;
+          height: 20px;
+          color: var(--primary-color);
+        }
+        .line-info {
+          margin-top: 8px;
+        }
+        .line-number {
+          background: var(--primary-color);
+          color: var(--text-primary-color);
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 0.9em;
+        }
+        .arrival-times {
+          margin-top: 4px;
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .arrival-time {
+          color: var(--secondary-text-color);
+          font-size: 0.9em;
+        }
+      `;
+      card.appendChild(style);
+
+      const content = document.createElement('div');
+      content.className = 'card-content';
+      card.appendChild(content);
+
+      const root = createRoot(content);
+      root.render(
+        <React.StrictMode>
+          <TransportCard config={this._config} />
+        </React.StrictMode>
+      );
+    }
   }
 }
 
-customElements.define('city-dashboard', CityDashboard); 
+customElements.define('city-dashboard-card', CityDashboardCard); 

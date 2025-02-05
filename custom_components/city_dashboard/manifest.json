@@ -5,7 +5,8 @@
   "config_flow": true,
   "documentation": "https://github.com/dzarlax/city-dashboard",
   "dependencies": [
-    "frontend"
+    "frontend",
+    "lovelace"
   ],
   "frontend_js_module": "dashboard.js",
   "translations": [
@@ -21,8 +22,8 @@
   "issue_tracker": "https://github.com/dzarlax/city-dashboard/issues",
   "integration_type": "hub",
   "files": [
-    "www/dashboard.js",
-    "www/index.html",
+    "www/card.js",
+    "www/editor.js",
     "www/dash.svg"
   ]
 }

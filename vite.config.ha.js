@@ -11,14 +11,16 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      input: 'src/client/ha-panel.jsx',
+      input: {
+        'card': 'src/client/city-dashboard-card.js',
+        'editor': 'src/client/card-editor.js'
+      },
       output: {
-        entryFileNames: 'dashboard.js',
+        entryFileNames: '[name].js',
       },
     },
     sourcemap: true,
     minify: 'esbuild',
-    cssInject: true, // Встраиваем CSS в JS
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
