@@ -5,10 +5,9 @@
   "config_flow": true,
   "documentation": "https://github.com/dzarlax/city-dashboard",
   "dependencies": [
-    "frontend",
-    "lovelace"
+    "frontend"
   ],
-  "frontend_js_module": "card.js",
+  "frontend_js_module": "dashboard.js",
   "translations": [
     "en"
   ],
@@ -20,10 +19,5 @@
   "homeassistant": "2023.8.0",
   "render_readme": true,
   "issue_tracker": "https://github.com/dzarlax/city-dashboard/issues",
-  "integration_type": "service",
-  "files": [
-    "www/card.js",
-    "www/editor.js",
-    "www/dash.svg"
-  ]
+  "integration_type": "service"
 }
