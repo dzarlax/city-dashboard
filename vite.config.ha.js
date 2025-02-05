@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { baseConfig } from './vite.config.base';
+import react from '@vitejs/plugin-react';
 
 const isHACS = process.env.HACS === 'true';
 const base = isHACS ? '/local/community/city_dashboard/' : '/';
@@ -7,13 +8,13 @@ const base = isHACS ? '/local/community/city_dashboard/' : '/';
 export default defineConfig({
   ...baseConfig,
   base: base,
+  plugins: [react()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        'card': 'src/client/city-dashboard-card.js',
-        'editor': 'src/client/card-editor.js'
+        'dashboard': 'src/client/dashboard.js'
       },
       output: {
         entryFileNames: '[name].js',

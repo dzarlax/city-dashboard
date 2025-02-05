@@ -13,12 +13,14 @@ class CityDashboardPanel extends HTMLElement {
       this.attachShadow({ mode: 'open' });
 
       const root = document.createElement('div');
+      root.style.cssText = `
+        height: 100%;
+        padding: var(--ha-card-padding, 16px);
+      `;
       this.shadowRoot.appendChild(root);
 
       createRoot(root).render(
-        <React.StrictMode>
-          <TransportCard />
-        </React.StrictMode>
+        <TransportCard />
       );
     }
   }
