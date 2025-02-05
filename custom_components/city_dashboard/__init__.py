@@ -23,6 +23,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     if entry.options.get("add_sidebar", True):
         _LOGGER.debug("Registering panel for City Dashboard")
+        frontend.async_remove_panel(hass, "city-dashboard")
+        
         frontend.async_register_built_in_panel(
             hass,
             "custom",
