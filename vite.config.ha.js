@@ -10,12 +10,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    assetsDir: 'assets',
     rollupOptions: {
       input: 'src/client/ha-panel.jsx',
       output: {
         entryFileNames: 'dashboard.js',
-        chunkFileNames: 'assets/[name]-[hash].js',
       },
     },
     sourcemap: true,

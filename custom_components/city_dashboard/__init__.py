@@ -37,8 +37,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     "name": "city-dashboard",
                     "module_url": "/local/community/city_dashboard/dashboard.js",
                     "embed_iframe": True,
-                    "trust_external": True,
-                    "css_url": ["/local/community/city_dashboard/assets/style.css"]
+                    "trust_external": True
                 }
             }
         )
@@ -58,10 +57,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not component_www.exists():
             component_www = component_path / "www"
         
-        # Создаем директорию assets если её нет
-        assets_dst = www_path / "assets"
-        assets_dst.mkdir(exist_ok=True)
-        
         # Копируем dash.svg из корня проекта
         dash_src = Path(__file__).parent.parent.parent / "dash.svg"
         if dash_src.exists():
@@ -75,19 +70,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if file.is_file():
                 _LOGGER.debug("Copying file %s to %s", file, www_path / file.name)
                 shutil.copy2(file, www_path / file.name)
-
-        # Copy assets if they exist
-        assets_src = component_www / "assets"
-        if assets_src.exists():
-            _LOGGER.debug("Assets source directory contents: %s", list(assets_src.iterdir()))
-            for asset in assets_src.iterdir():
-                if asset.is_file():
-                    _LOGGER.debug("Copying asset %s to %s", asset, assets_dst / asset.name)
-                    shutil.copy2(asset, assets_dst / asset.name)
-        else:
-            _LOGGER.error("Missing required directory: %s", assets_src)
-            _LOGGER.error("Component www contents: %s", list(component_www.iterdir()))
-            raise HomeAssistantError(f"Missing required directory: {assets_src}")
 
     try:
         await hass.async_add_executor_job(copy_files)

@@ -23,7 +23,6 @@
   "files": [
     "www/dashboard.js",
     "www/index.html",
-    "www/dash.svg",
-    "www/assets/**"
+    "www/dash.svg"
   ]
 }
