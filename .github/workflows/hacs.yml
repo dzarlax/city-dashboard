@@ -54,15 +54,17 @@ jobs:
         run: |
           npm run build:hacs
           # Создаем www директорию и очищаем её
-          mkdir -p custom_components/city_dashboard/www
+          mkdir -p custom_components/city_dashboard/www/assets
           rm -rf custom_components/city_dashboard/www/*
           # Копируем собранные файлы
           cp -r dist/* custom_components/city_dashboard/www/
+          # Копируем иконку
+          cp dash.svg custom_components/city_dashboard/www/
           # Проверяем содержимое
           echo "Contents of www directory:"
           ls -la custom_components/city_dashboard/www/
           echo "Contents of assets directory:"
-          ls -la custom_components/city_dashboard/www/assets/
+          ls -la custom_components/city_dashboard/www/assets/ || true
 
       - name: Prepare HACS package
         run: |

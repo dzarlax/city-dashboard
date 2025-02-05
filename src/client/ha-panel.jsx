@@ -21,6 +21,9 @@ class CityDashboard extends HTMLElement {
     style.textContent = styles;  // Используем импортированные стили
     this.shadowRoot.appendChild(style);
     
+    // Проверяем загрузку стилей
+    console.debug('Styles loaded:', styles.length, 'bytes');
+    
     // Рендерим React в контейнер
     const root = createRoot(container);
     root.render(
