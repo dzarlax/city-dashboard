@@ -13,6 +13,7 @@ RUN npm install
 # Copy source files
 COPY src/ ./src/
 COPY vite.config.js ./
+COPY vite.config.base.js ./
 COPY vite.config.ha.js ./
 COPY index.html ./
 COPY tailwind.config.js ./
