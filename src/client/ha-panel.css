@@ -4,7 +4,7 @@
 @tailwind utilities;
 
 /* Затем базовые стили для Home Assistant панели */
-city-dashboard {
+:host {
   display: block;
   height: 100%;
   width: 100%;
@@ -32,6 +32,7 @@ city-dashboard {
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+  height: 100%;
 }
 
 /* ... остальные стили из App.css ... */ 

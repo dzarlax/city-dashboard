@@ -20,8 +20,7 @@ export default defineConfig({
     },
     sourcemap: true,
     minify: 'esbuild',
-    cssCodeSplit: false,  // Встраиваем CSS в JS
-    cssMinify: true,
+    cssCodeSplit: false,
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),

@@ -56,14 +56,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.debug("Checking dist path: %s", component_www)
         
         if not component_www.exists():
-            # Если dist нет, используем www директорию (в HACS)
             component_www = component_path / "www"
-            _LOGGER.debug("Checking local www path: %s", component_www)
-            if not component_www.exists():
-                _LOGGER.error("Neither dist nor www directory exists")
-                _LOGGER.error("Current directory contents: %s", 
-                    list(Path(__file__).parent.parent.parent.iterdir()))
-                raise HomeAssistantError(f"Missing www directory in both locations: {component_www}")
+        
+        # Копируем dash.svg из корня проекта
+        dash_src = Path(__file__).parent.parent.parent / "dash.svg"
+        if dash_src.exists():
+            _LOGGER.debug("Copying dash.svg from %s to %s", dash_src, www_path / "dash.svg")
+            shutil.copy2(dash_src, www_path / "dash.svg")
+        else:
+            _LOGGER.error("Icon file not found: %s", dash_src)
 
         # Копируем все файлы из корня
         for file in component_www.glob('*.*'):

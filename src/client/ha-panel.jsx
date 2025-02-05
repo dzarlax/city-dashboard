@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import './ha-panel.css'  // Используем единый файл для HA
+import styles from './ha-panel.css?inline'  // Импортируем CSS как строку
 import App from './App'
 
 class CityDashboard extends HTMLElement {
@@ -13,23 +13,12 @@ class CityDashboard extends HTMLElement {
     
     // Создаем контейнер для React
     const container = document.createElement('div');
+    container.id = 'root';
     this.shadowRoot.appendChild(container);
     
-    // Создаем стили
+    // Добавляем стили
     const style = document.createElement('style');
-    style.textContent = `
-      :host {
-        display: block;
-        height: 100%;
-        width: 100%;
-        background-color: var(--primary-background-color);
-        color: var(--primary-text-color);
-      }
-      
-      div {
-        height: 100%;
-      }
-    `;
+    style.textContent = styles;  // Используем импортированные стили
     this.shadowRoot.appendChild(style);
     
     // Рендерим React в контейнер
