@@ -50,16 +50,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         
         _LOGGER.debug("Component path: %s", component_path)
         
-        # Сначала проверяем локальную www директорию
-        component_www = component_path / "www"
-        _LOGGER.debug("Checking local www path: %s", component_www)
+        # Сначала проверяем dist директорию (при разработке)
+        component_www = Path(__file__).parent.parent.parent / "dist"
+        _LOGGER.debug("Checking dist path: %s", component_www)
         
         if not component_www.exists():
-            # Если локальной нет, используем dist директорию (при разработке)
-            component_www = Path(__file__).parent.parent.parent / "dist"
-            _LOGGER.debug("Checking dist path: %s", component_www)
+            # Если dist нет, используем www директорию (в HACS)
+            component_www = component_path / "www"
+            _LOGGER.debug("Checking local www path: %s", component_www)
             if not component_www.exists():
-                _LOGGER.error("Neither www nor dist directory exists")
+                _LOGGER.error("Neither dist nor www directory exists")
                 _LOGGER.error("Current directory contents: %s", 
                     list(Path(__file__).parent.parent.parent.iterdir()))
                 raise HomeAssistantError(f"Missing www directory in both locations: {component_www}")
