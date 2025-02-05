@@ -50,19 +50,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build HACS frontend
-        run: |
-          HACS=true npm run build
-          mkdir -p www/community/city_dashboard
-          cp -r dist/* www/community/city_dashboard/
-
       - name: Build frontend
         run: |
-          HACS=true npm run build:hacs
+          HACS=true npm run build
           mkdir -p custom_components/city_dashboard/www
-          cp -r www/community/city_dashboard/* custom_components/city_dashboard/www/
-  
-      # Затем готовим HACS-релиз
+          cp -r dist/* custom_components/city_dashboard/www/
+
       - name: Prepare HACS package
         run: |
           # Start fresh with correct structure
@@ -75,14 +68,12 @@ jobs:
           cp custom_components/city_dashboard/config_flow.py hacs-release/custom_components/city_dashboard/
           cp custom_components/city_dashboard/const.py hacs-release/custom_components/city_dashboard/
           
+          # Copy www directory with built frontend
+          cp -r custom_components/city_dashboard/www hacs-release/custom_components/city_dashboard/
+          
           # Copy translations if they exist
           if [ -d "custom_components/city_dashboard/translations" ]; then
             cp -r custom_components/city_dashboard/translations hacs-release/custom_components/city_dashboard/
-          fi
-          
-          # Copy www directory if it exists
-          if [ -d "custom_components/city_dashboard/www" ]; then
-            cp -r custom_components/city_dashboard/www hacs-release/custom_components/city_dashboard/
           fi
           
           # Create zip from the content of hacs-release directory
