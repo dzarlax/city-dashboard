@@ -34,3 +34,4 @@ package-lock.json
 
 custom_components/city_dashboard/www/*
 !custom_components/city_dashboard/www/.gitkeep
+dist 2
