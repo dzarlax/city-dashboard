@@ -7,12 +7,7 @@ export const baseConfig = {
   css: {
     postcss: {
       plugins: [
-        tailwindcss({
-          content: [
-            './src/client/**/*.{js,jsx}',
-            './src/client/**/*.css',
-          ],
-        }),
+        tailwindcss(), // Использует tailwind.config.js автоматически
         autoprefixer(),
       ],
     },

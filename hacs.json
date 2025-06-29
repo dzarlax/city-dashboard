@@ -1,9 +1,0 @@
-{
-    "name": "City Dashboard",
-    "render_readme": true,
-    "content_in_root": false,
-    "domains": ["city_dashboard"],
-    "homeassistant": "2023.8.0",
-    "zip_release": true,
-    "filename": "city_dashboard.zip"
-  }

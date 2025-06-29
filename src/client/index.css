@@ -1,3 +1,54 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom scrollbar styles */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Base theme styles and focus styles */
+@layer base {
+  /* Theme styles for body and html */
+  html, body {
+    @apply transition-colors duration-300;
+  }
+  
+  html {
+    @apply bg-gray-50;
+  }
+  
+  html.dark {
+    @apply bg-gray-900;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+  
+  html.dark body {
+    @apply bg-gray-900 text-gray-100;
+  }
+  
+  #root {
+    @apply min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300;
+  }
+  
+  /* Custom focus styles */
+  :focus {
+    outline: 2px solid theme('colors.primary.500');
+    outline-offset: 2px;
+  }
+}
+
+/* Improved button hover effects */
+@layer components {
+  .button-hover-effect {
+    @apply transition-all duration-200 hover:scale-105 active:scale-95;
+  }
+}
