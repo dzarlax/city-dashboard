@@ -1,6 +1,23 @@
 // Custom Service Worker для City Dashboard PWA
 const CACHE_NAME = 'city-dashboard-v1';
-const SERVER_IP = 'https://transport-api.dzarlax.dev';
+
+// Определяем SERVER_IP в зависимости от окружения
+const SERVER_IP = (() => {
+  if (typeof window !== 'undefined') {
+    // В main thread используем window.location
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'https://transport-api.dzarlax.dev'; // Всегда используем production API
+    }
+  } else {
+    // В service worker используем self.location
+    const hostname = self.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'https://transport-api.dzarlax.dev'; // Всегда используем production API
+    }
+  }
+  return 'https://transport-api.dzarlax.dev';
+})();
 
 // Ресурсы для кэширования
 const STATIC_CACHE_URLS = [

@@ -6,6 +6,7 @@
     "client": "vite",
     "dev": "npm run client",
     "build:client": "vite build",
+    "build:prod": "GITHUB_PAGES=true vite build --base=https://transport.dzarlax.dev/",
     "build": "npm run build:client",
     "build:hacs": "HACS=true vite build --config vite.config.ha.js",
     "start": "npm run start:client",

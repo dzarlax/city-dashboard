@@ -5,6 +5,10 @@ WORKDIR /app
 
 # Add build argument for different build commands
 ARG BUILD_COMMAND=build:client
+ARG GITHUB_PAGES=false
+
+# Set environment variable
+ENV GITHUB_PAGES=${GITHUB_PAGES}
 
 # Install dependencies
 COPY package*.json ./
@@ -20,5 +24,8 @@ COPY tailwind.config.js ./
 COPY postcss.config.js ./
 COPY dash.svg ./
 
-# Build based on the build command
-RUN npm run ${BUILD_COMMAND}
+# Copy public directory
+COPY public/ ./public/
+
+# Build based on the build command - use build:prod for GitHub Pages
+RUN if [ "$GITHUB_PAGES" = "true" ]; then npm run build:prod; else npm run ${BUILD_COMMAND}; fi

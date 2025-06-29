@@ -7,8 +7,16 @@ export function register(config) {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
       try {
-        // Регистрируем наш кастомный service worker
-        const swUrl = '/sw-custom.js';
+        // Определяем правильный URL для service worker
+        let swUrl = '/sw-custom.js';
+        
+        // В development режиме используем относительный путь
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+          swUrl = '/sw-custom.js';
+        }
+        
+        console.log('SW: Registering service worker from:', swUrl);
+        
         swRegistration = await navigator.serviceWorker.register(swUrl);
         
         console.log('SW: Service Worker registered with scope:', swRegistration.scope);
@@ -27,8 +35,13 @@ export function register(config) {
         
       } catch (error) {
         console.error('SW: Service Worker registration failed:', error);
-        if (config && config.onError) {
-          config.onError(error);
+        // Не показываем ошибку если service worker не загрузился в development
+        if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+          if (config && config.onError) {
+            config.onError(error);
+          }
+        } else {
+          console.warn('SW: Service Worker failed to load in development mode, continuing without it');
         }
       }
     });

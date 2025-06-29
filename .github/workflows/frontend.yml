@@ -17,7 +17,7 @@ jobs:
       # Шаг 2: Сборка фронтенда в Docker
       - name: Build static files in Docker
         run: |
-          docker build -t frontend-builder -f Dockerfile.front .
+          docker build -t frontend-builder -f Dockerfile.front --build-arg GITHUB_PAGES=true .
           docker create --name build-container frontend-builder
           docker cp build-container:/app/dist ./dist
           docker rm build-container
