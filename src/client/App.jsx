@@ -1,8 +1,11 @@
 import Dashboard from './Dashboard.jsx'
+import { LocalizationProvider } from './utils/LocalizationContext.jsx'
 
 function App() {
   return (
-    <Dashboard />
+    <LocalizationProvider>
+      <Dashboard />
+    </LocalizationProvider>
   )
 }
 

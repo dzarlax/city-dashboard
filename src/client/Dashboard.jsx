@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import WeatherForecast from './WeatherForecast';
 import Header from './components/Header';
 import BusStation from './components/BusStation';
 import { LoadingGrid } from './components/LoadingCard';
@@ -218,7 +217,7 @@ const useLocationManager = () => {
 
     // Автоматически используем default location для некритических ошибок
     if (shouldAutoFallback) {
-      console.log('Auto-falling back to default location due to:', errorMessage);
+      
       try {
         await useDefaultLocationInternal(fallbackReason);
         return; // Не показываем ошибку если fallback сработал
@@ -293,7 +292,7 @@ const useLocationManager = () => {
         handlePositionUpdate(storedPosition);
       } else if (!availability.available) {
         // Geolocation не доступна, используем default location
-        console.log('Geolocation not available, using default location:', availability.reason);
+
         await useDefaultLocationInternal(availability.reason);
       } else {
         // Try to get location automatically
@@ -385,8 +384,8 @@ const TransitDashboard = () => {
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-          {/* Header Section */}
+        <div className="w-full px-2 sm:px-3 lg:px-4 py-3 sm:py-4 space-y-4">
+          {/* Header */}
           <Header 
             lastUpdated={lastUpdated}
             onRefresh={refresh}
@@ -409,11 +408,6 @@ const TransitDashboard = () => {
               onTryAgain={retryLocationRequest}
               onDismiss={dismissFallbackNotice}
             />
-          )}
-
-          {/* Weather Widget - only show if we have location */}
-          {userLocation && (
-            <WeatherForecast lat={userLocation.lat} lon={userLocation.lon} />
           )}
 
           {/* Main Content Area */}
@@ -462,7 +456,7 @@ const TransitDashboard = () => {
                 </div>
               </div>
             ) : stops.length > 0 ? (
-              <div className="grid gap-4 sm:gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8">
                 {stops.map((stop) => (
                   <BusStation 
                     key={`${stop.stopId}-${stop.city}`} 

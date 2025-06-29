@@ -1,14 +1,13 @@
 import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '../utils/ThemeContext';
+import { useLocalization } from '../utils/LocalizationContext';
 
 const ThemeToggle = () => {
   const { isDark, toggleTheme } = useTheme();
-  
-  console.log('ThemeToggle rendered:', { isDark, toggleTheme: typeof toggleTheme });
+  const { t } = useLocalization();
 
   const handleClick = () => {
-    console.log('Theme toggle clicked, current isDark:', isDark);
     toggleTheme();
   };
 
@@ -16,7 +15,7 @@ const ThemeToggle = () => {
     <button
       onClick={handleClick}
       className="relative p-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-all duration-200 group"
-      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={isDark ? t('switchToLightMode') : t('switchToDarkMode')}
     >
       <div className="relative w-5 h-5">
         <Sun 

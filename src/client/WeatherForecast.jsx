@@ -51,6 +51,101 @@ const WeatherIcon = ({ iconCode, alt, className = "w-8 h-8 sm:w-10 sm:h-10" }) =
   );
 };
 
+// Compact weather widget for header integration
+const CompactWeatherForecast = ({ lat, lon }) => {
+  const [currentWeather, setCurrentWeather] = useState(null);
+  const [forecast, setForecast] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [apiKey, setApiKey] = useState(null);
+
+  useEffect(() => {
+    const fetchApiKey = async () => {
+      try {
+        const response = await fetch(`${SERVER_IP}/api/env`);
+        if (!response.ok) throw new Error('Failed to fetch API key');
+        const data = await response.json();
+        if (!data.env?.WEATHER_API_KEY) throw new Error('API key not found');
+        setApiKey(data.env.WEATHER_API_KEY);
+      } catch (err) {
+        console.error('Error fetching API key:', err);
+        setError('Failed to load weather data');
+      }
+    };
+    fetchApiKey();
+  }, []);
+
+  useEffect(() => {
+    if (!apiKey) return;
+
+    const fetchWeather = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch current weather and forecast in parallel
+        const [currentResponse, forecastResponse] = await Promise.all([
+          fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`),
+          fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&cnt=6&appid=${apiKey}`)
+        ]);
+
+        if (!currentResponse.ok || !forecastResponse.ok) {
+          throw new Error('Failed to fetch weather data');
+        }
+
+        const [currentData, forecastData] = await Promise.all([
+          currentResponse.json(),
+          forecastResponse.json()
+        ]);
+
+        setCurrentWeather(currentData);
+        setForecast(forecastData.list.slice(0, 6));
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching weather:', err);
+        setError('Unable to load weather');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWeather();
+  }, [lat, lon, apiKey]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 animate-pulse">
+        <div className="w-6 h-6 bg-gray-300 dark:bg-gray-600 rounded"></div>
+        <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-12"></div>
+      </div>
+    );
+  }
+
+  if (error || !currentWeather) {
+    return null; // Hide on error to save space
+  }
+
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <WeatherIcon 
+        iconCode={currentWeather.weather[0].icon}
+        alt={currentWeather.weather[0].description}
+        className="w-5 h-5 sm:w-6 sm:h-6"
+      />
+      <span className="font-medium text-gray-800 dark:text-gray-200">
+        {Math.round(currentWeather.main.temp)}°C
+      </span>
+      <div className="hidden sm:flex items-center gap-1">
+        {forecast.slice(0, 4).map((hour, index) => (
+          <div key={index} className="flex flex-col items-center text-xs text-gray-600 dark:text-gray-400">
+            <span>{formatTime(hour.dt, true)}</span>
+            <span>{Math.round(hour.main.temp)}°</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const WeatherForecast = ({ lat, lon }) => {
   const [forecast, setForecast] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -197,4 +292,6 @@ const WeatherForecast = ({ lat, lon }) => {
   );
 };
 
+// Export both components
 export default WeatherForecast;
+export { CompactWeatherForecast };
