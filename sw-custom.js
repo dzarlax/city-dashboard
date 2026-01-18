@@ -77,6 +77,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Не кэшируем /api/lines - пропускаем через сеть без кэширования
+  if (url.pathname === '/api/lines') {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // Стратегия для API запросов - Network First с fallback на Cache
   if (API_CACHE_PATTERNS.some(pattern => pattern.test(request.url))) {
     event.respondWith(networkFirstStrategy(request));
@@ -84,8 +90,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Стратегия для статических файлов - Cache First
-  if (request.destination === 'document' || 
-      request.destination === 'script' || 
+  if (request.destination === 'document' ||
+      request.destination === 'script' ||
       request.destination === 'style' ||
       request.destination === 'image') {
     event.respondWith(cacheFirstStrategy(request));
