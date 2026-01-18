@@ -196,8 +196,8 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
 
                     {/* Expanded route details */}
                     {isExpanded && lineTooltip && (
-                      <div className="bg-gradient-to-r from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 px-3 py-2 rounded-lg border border-primary-200 dark:border-primary-700">
-                        <div className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                      <div className="bg-gray-50 dark:bg-gray-900 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div className="text-xs text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
                           {lineTooltip}
                         </div>
                       </div>

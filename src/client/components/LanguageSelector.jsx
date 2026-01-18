@@ -97,7 +97,7 @@ const LanguageSelector = () => {
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
                     language === lang.code
                       ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-200'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                   }`}
                 >
                   <span className="text-lg">{lang.flag}</span>
