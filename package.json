@@ -10,7 +10,8 @@
     "build": "npm run build:client",
     "build:hacs": "HACS=true vite build --config vite.config.ha.js",
     "start": "npm run start:client",
-    "start:client": "vite preview --host --port 3000"
+    "start:client": "vite preview --host --port 3000",
+    "update-lines": "python scripts/update_line_data.py"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

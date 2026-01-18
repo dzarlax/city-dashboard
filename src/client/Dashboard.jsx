@@ -1,30 +1,54 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { MapPin, Star } from 'lucide-react';
 import Header from './components/Header';
 import BusStation from './components/BusStation';
 import { LoadingGrid } from './components/LoadingCard';
 import LocationPermissionModal from './components/LocationPermissionModal';
 import LocationStatus from './components/LocationStatus';
 import LocationFallbackNotice from './components/LocationFallbackNotice';
+import SortSelector from './components/SortSelector';
 import geolocationManager from './utils/GeolocationManager';
 import { usePWAGeolocation } from './utils/useVisibilityChange';
+import {
+  SERVER_URL,
+  CITIES,
+  POLLING_INTERVAL,
+  DEFAULT_SEARCH_RADIUS,
+  GEO_ERRORS,
+  MAX_RETRY_ATTEMPTS,
+  RETRY_DELAY_BASE,
+  RETRY_DELAY_MAX,
+  STALE_DATA_THRESHOLD,
+  STORAGE_KEYS,
+  SORT_OPTIONS
+} from './utils/constants';
+import {
+  isVehicleChanged,
+  createStationKey,
+  sortStationsByDistance,
+  sortStationsByArrivalTime,
+  sortStationsByName
+} from './utils/helpers';
 
+// Retry helper with exponential backoff
+const fetchWithRetry = async (fetchFn, attempts = MAX_RETRY_ATTEMPTS) => {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fetchFn();
+    } catch (error) {
+      if (i === attempts - 1) throw error;
 
-
-const SERVER_IP = "https://transport-api.dzarlax.dev";
-
-// Utility functions
-const formatMinutes = (seconds) => {
-  const minutes = Math.ceil(seconds / 60);
-  return `${minutes}min`;
-};
-
-const isVehicleChanged = (oldVehicle, newVehicle) => {
-  return oldVehicle.secondsLeft !== newVehicle.secondsLeft ||
-         oldVehicle.stationsBetween !== newVehicle.stationsBetween;
+      const delay = Math.min(
+        RETRY_DELAY_BASE * Math.pow(2, i),
+        RETRY_DELAY_MAX
+      );
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
 };
 
 // Modified transit data hook with correct state management
-const useTransitData = (userLocation, config) => {
+const useTransitData = (userLocation, config, isTabVisible = true) => {
   const [stationsMap, setStationsMap] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,30 +59,30 @@ const useTransitData = (userLocation, config) => {
     if (!userLocation || !config.searchRad) return;
 
     try {
-      const cities = ['bg', 'ns', 'nis'];
       let hasUpdates = false;
-
       const newStationsData = new Map();
-      
-      await Promise.all(cities.map(async city => {
+
+      await Promise.all(CITIES.map(async city => {
         const params = new URLSearchParams({
           lat: userLocation.lat,
           lon: userLocation.lon,
           rad: config.searchRad,
         });
 
-        const response = await fetch(
-          `${SERVER_IP}/api/stations/${city}/all?${params.toString()}`
-        );
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch stations for ${city.toUpperCase()}`);
-        }
+        const response = await fetchWithRetry(async () => {
+          const res = await fetch(
+            `${SERVER_URL}/api/stations/${city}/all?${params.toString()}`
+          );
+          if (!res.ok) {
+            throw new Error(`Failed to fetch stations for ${city.toUpperCase()}`);
+          }
+          return res;
+        });
 
         const data = await response.json();
-        
+
         data.forEach(station => {
-          const stationKey = `${station.stopId}-${city}`;
+          const stationKey = createStationKey(station.stopId, city);
           const processedStation = {
             ...station,
             distance: `${Math.round(station.distance)}m`,
@@ -67,7 +91,7 @@ const useTransitData = (userLocation, config) => {
 
           // Check if vehicles have changed
           const prevVehiclesForStation = previousVehicles.current.get(stationKey) || [];
-          const vehiclesChanged = !prevVehiclesForStation.length || 
+          const vehiclesChanged = !prevVehiclesForStation.length ||
             processedStation.vehicles.some((vehicle, idx) => {
               const prevVehicle = prevVehiclesForStation[idx];
               return !prevVehicle || isVehicleChanged(prevVehicle, vehicle);
@@ -84,11 +108,11 @@ const useTransitData = (userLocation, config) => {
 
       // Update stations map
       setStationsMap(newStationsData);
-      
+
       if (hasUpdates) {
         setLastUpdated(new Date());
       }
-      
+
       setLoading(false);
       setError(null);
     } catch (err) {
@@ -98,15 +122,15 @@ const useTransitData = (userLocation, config) => {
   }, [userLocation, config.searchRad]);
 
   useEffect(() => {
-    if (userLocation) {
+    if (userLocation && isTabVisible) {
       fetchStops();
-      const interval = setInterval(fetchStops, 10000);
+      const interval = setInterval(fetchStops, POLLING_INTERVAL);
       return () => {
         clearInterval(interval);
         previousVehicles.current.clear();
       };
     }
-  }, [userLocation, fetchStops]);
+  }, [userLocation, fetchStops, isTabVisible]);
 
   return {
     stops: Array.from(stationsMap.values()),
@@ -136,16 +160,16 @@ const useLocationManager = () => {
   // Load environment config
   const loadEnvConfig = useCallback(async () => {
     try {
-      const response = await fetch(`${SERVER_IP}/api/env`);
+      const response = await fetch(`${SERVER_URL}/api/env`);
       const data = await response.json();
       return {
         lat: parseFloat(data.env.BELGRADE_LAT),
         lon: parseFloat(data.env.BELGRADE_LON),
-        searchRad: parseInt(data.env.SEARCH_RAD, 10)
+        searchRad: parseInt(data.env.SEARCH_RAD, 10) || DEFAULT_SEARCH_RADIUS
       };
     } catch (error) {
       console.warn('Failed to fetch environment config:', error);
-      return { searchRad: 1000 };
+      return { searchRad: DEFAULT_SEARCH_RADIUS };
     }
   }, []);
 
@@ -188,27 +212,26 @@ const useLocationManager = () => {
   // Handle geolocation errors - теперь использует внутреннюю функцию
   const handleLocationError = useCallback(async (error) => {
     console.warn('Geolocation error:', error);
-    
-    // Определяем тип ошибки и реакцию
+
     let shouldAutoFallback = false;
     let errorMessage = error.message || 'Geolocation failed';
     let fallbackReason = null;
-    
-    if (error.message?.includes('HTTPS_REQUIRED')) {
+
+    if (error.message?.includes(GEO_ERRORS.HTTPS_REQUIRED)) {
       errorMessage = 'HTTPS connection required for location access';
-      fallbackReason = 'HTTPS_REQUIRED';
+      fallbackReason = GEO_ERRORS.HTTPS_REQUIRED;
       shouldAutoFallback = true;
-    } else if (error.message?.includes('NOT_SUPPORTED')) {
+    } else if (error.message?.includes(GEO_ERRORS.NOT_SUPPORTED)) {
       errorMessage = 'Location services not supported';
-      fallbackReason = 'NOT_SUPPORTED';
+      fallbackReason = GEO_ERRORS.NOT_SUPPORTED;
       shouldAutoFallback = true;
     } else if (error.code === 1) { // PERMISSION_DENIED
       errorMessage = 'Location access denied by user';
-      fallbackReason = 'PERMISSION_DENIED';
+      fallbackReason = GEO_ERRORS.PERMISSION_DENIED;
       shouldAutoFallback = true;
     } else if (error.code === 2) { // POSITION_UNAVAILABLE
       errorMessage = 'Location information unavailable';
-      fallbackReason = 'POSITION_UNAVAILABLE';
+      fallbackReason = GEO_ERRORS.POSITION_UNAVAILABLE;
       shouldAutoFallback = true;
     } else if (error.code === 3) { // TIMEOUT
       errorMessage = 'Location request timed out';
@@ -217,15 +240,14 @@ const useLocationManager = () => {
 
     // Автоматически используем default location для некритических ошибок
     if (shouldAutoFallback) {
-      
       try {
         await useDefaultLocationInternal(fallbackReason);
-        return; // Не показываем ошибку если fallback сработал
+        return;
       } catch (fallbackError) {
         console.error('Default location fallback failed:', fallbackError);
       }
     }
-    
+
     setState(prev => ({
       ...prev,
       error: new Error(errorMessage),
@@ -334,10 +356,10 @@ const useLocationManager = () => {
 };
 
 const TransitDashboard = () => {
-  const { 
-    userLocation, 
-    config, 
-    error: setupError, 
+  const {
+    userLocation,
+    config,
+    error: setupError,
     showPermissionModal,
     isRequestingLocation,
     locationStatus,
@@ -347,8 +369,99 @@ const TransitDashboard = () => {
     retryLocationRequest,
     dismissFallbackNotice
   } = useLocationManager();
-  
-  const { stops, loading, error, lastUpdated, refresh } = useTransitData(userLocation, config);
+
+  // Track tab visibility for polling optimization
+  const [isTabVisible, setIsTabVisible] = useState(true);
+
+  // Sorting state
+  const [sortBy, setSortBy] = useState(() => {
+    return localStorage.getItem(STORAGE_KEYS.SORT_BY) || SORT_OPTIONS.DISTANCE;
+  });
+
+  // Favorites state
+  const [favoriteStations, setFavoriteStations] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.FAVORITE_STATIONS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Search radius state
+  const [searchRadius, setSearchRadius] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.SEARCH_RADIUS);
+    return saved ? parseInt(saved, 10) : DEFAULT_SEARCH_RADIUS;
+  });
+
+  // Update config when radius changes
+  const configWithRadius = useMemo(() => ({
+    ...config,
+    searchRad: searchRadius
+  }), [config, searchRadius]);
+
+  // Toggle favorite station
+  const toggleFavorite = useCallback((stopId, city) => {
+    const key = createStationKey(stopId, city);
+    setFavoriteStations(prev => {
+      const newFavorites = prev.includes(key)
+        ? prev.filter(f => f !== key)
+        : [...prev, key];
+
+      localStorage.setItem(STORAGE_KEYS.FAVORITE_STATIONS, JSON.stringify(newFavorites));
+      return newFavorites;
+    });
+  }, []);
+
+  // Check if station is favorite
+  const isStationFavorite = useCallback((stopId, city) => {
+    const key = createStationKey(stopId, city);
+    return favoriteStations.includes(key);
+  }, [favoriteStations]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsTabVisible(!document.hidden);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  const { stops, loading, error, lastUpdated, refresh } = useTransitData(userLocation, configWithRadius, isTabVisible);
+
+  // Apply sorting
+  const sortedStops = useMemo(() => {
+    switch (sortBy) {
+      case SORT_OPTIONS.DISTANCE:
+        return sortStationsByDistance(stops);
+      case SORT_OPTIONS.ARRIVAL_TIME:
+        return sortStationsByArrivalTime(stops);
+      case SORT_OPTIONS.NAME:
+        return sortStationsByName(stops);
+      default:
+        return stops;
+    }
+  }, [stops, sortBy]);
+
+  // Separate favorite and non-favorite stations
+  const { favoriteStops, otherStops } = useMemo(() => {
+    const favorites = [];
+    const others = [];
+
+    sortedStops.forEach(stop => {
+      const key = createStationKey(stop.stopId, stop.city);
+      if (favoriteStations.includes(key)) {
+        favorites.push(stop);
+      } else {
+        others.push(stop);
+      }
+    });
+
+    return { favoriteStops: favorites, otherStops: others };
+  }, [sortedStops, favoriteStations]);
 
   // Handle manual location request from header
   const handleRequestLocation = useCallback(() => {
@@ -386,10 +499,14 @@ const TransitDashboard = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
         <div className="w-full px-2 sm:px-3 lg:px-4 py-3 sm:py-4 space-y-4">
           {/* Header */}
-          <Header 
+          <Header
             lastUpdated={lastUpdated}
             onRefresh={refresh}
             loading={loading}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            searchRadius={searchRadius}
+            onRadiusChange={setSearchRadius}
             locationStatus={
               <LocationStatus
                 isUsingGPS={locationStatus.isUsingGPS}
@@ -411,7 +528,7 @@ const TransitDashboard = () => {
           )}
 
           {/* Main Content Area */}
-          <div className="space-y-6">
+          <main className="space-y-6" role="main" aria-label="Bus stations list">
             {!userLocation ? (
               <div className="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-xl p-8 shadow-sm animate-fade-in">
                 <div className="text-center">
@@ -455,15 +572,54 @@ const TransitDashboard = () => {
                   </button>
                 </div>
               </div>
-            ) : stops.length > 0 ? (
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8">
-                {stops.map((stop) => (
-                  <BusStation 
-                    key={`${stop.stopId}-${stop.city}`} 
-                    {...stop} 
-                  />
-                ))}
-              </div>
+            ) : sortedStops.length > 0 ? (
+              <>
+                {/* Favorites Section */}
+                {favoriteStops.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-2 px-1">
+                      <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                        Favorites ({favoriteStops.length})
+                      </h2>
+                    </div>
+                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8">
+                      {favoriteStops.map((stop) => (
+                        <BusStation
+                          key={`${stop.stopId}-${stop.city}`}
+                          {...stop}
+                          isFavorite={true}
+                          onToggleFavorite={toggleFavorite}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* All Stations Section */}
+                {otherStops.length > 0 && (
+                  <>
+                    {favoriteStops.length > 0 && (
+                      <div className="flex items-center gap-2 px-1">
+                        <MapPin className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                          All Stations ({otherStops.length})
+                        </h2>
+                      </div>
+                    )}
+                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8">
+                      {otherStops.map((stop) => (
+                        <BusStation
+                          key={`${stop.stopId}-${stop.city}`}
+                          {...stop}
+                          isFavorite={isStationFavorite(stop.stopId, stop.city)}
+                          onToggleFavorite={toggleFavorite}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
             ) : (
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-8 shadow-sm animate-fade-in">
                 <div className="text-center">
@@ -489,7 +645,7 @@ const TransitDashboard = () => {
                 </div>
               </div>
             )}
-          </div>
+          </main>
         </div>
       </div>
 

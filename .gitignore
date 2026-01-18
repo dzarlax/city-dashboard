@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Line data source files (only generated JSON should be in git)
+lines
+lines.*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -35,3 +39,4 @@ package-lock.json
 custom_components/city_dashboard/www/*
 !custom_components/city_dashboard/www/.gitkeep
 dist 2
+/docker-compose.yaml

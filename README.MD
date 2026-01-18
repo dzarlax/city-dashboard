@@ -129,6 +129,23 @@ To start the backend service, run:
 docker-compose up backend
 ```
 
+## Updating Transport Line Data
+
+When transport line data changes (new lines, modified routes, etc.), update the line mappings:
+
+1. Download the latest `lines` file from BG Prevoz
+2. Place it in the project root directory
+3. Run the update script:
+    ```sh
+    npm run update-lines
+    ```
+
+This generates:
+- `src/client/line_mapping.json` - Maps line numbers to BG Prevoz IDs (for clickable links)
+- `src/client/line_details.json` - Contains detailed route information (streets, type, category)
+
+For more details, see [scripts/README.md](scripts/README.md)
+
 ## Credits
 
 - Special thanks to [MikMik1011](https://github.com/MikMik1011/bgpp) for providing additional resources that helped shape this project.

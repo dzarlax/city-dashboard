@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build)",
+      "Bash(npx vite build:*)",
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(python:*)",
+      "mcp__web-search-prime__webSearchPrime",
+      "Bash(docker-compose restart:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(go build:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(npm run dev)",
+      "Bash(docker logs:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(go vet:*)",
+      "Bash(go run:*)"
+    ]
+  }
+}

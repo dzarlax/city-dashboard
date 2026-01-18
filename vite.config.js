@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [...baseConfig.plugins, envCompatible()],
   server: {
     host: true,
-    port: 3000,
+    port: 5173,
   },
   base: '/',
 });

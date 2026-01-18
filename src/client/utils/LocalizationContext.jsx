@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
+import { STORAGE_KEYS } from './constants';
 
 const LocalizationContext = createContext();
 
@@ -10,30 +11,34 @@ const translations = {
     updated: 'Updated',
     lastUpdated: 'Last updated',
     refresh: 'Refresh',
-    
+
     // Bus Station
     noArrivalsScheduled: 'No arrivals scheduled',
     distance: 'Distance',
     minutes: 'min',
-    
+
     // Loading
     loading: 'Loading...',
-    
+
     // Location
     locationRequired: 'Location access required',
     enableLocation: 'Enable Location',
     locationPermissionDenied: 'Location permission denied',
     locationError: 'Location error',
-    
+
     // Theme
     switchToDarkMode: 'Switch to dark mode',
     switchToLightMode: 'Switch to light mode',
-    
+
     // Time
-    now: 'Now',
-    arriving: 'Arriving'
+    now: 'Just now',
+    arriving: 'Arriving',
+
+    // Language
+    selectLanguage: 'Select Language',
+    language: 'Language'
   },
-  
+
   ru: {
     // Header
     nearbyTransit: 'Ближайший транспорт',
@@ -41,30 +46,34 @@ const translations = {
     updated: 'Обновлено',
     lastUpdated: 'Последнее обновление',
     refresh: 'Обновить',
-    
+
     // Bus Station
     noArrivalsScheduled: 'Рейсов не запланировано',
     distance: 'Расстояние',
     minutes: 'мин',
-    
+
     // Loading
     loading: 'Загрузка...',
-    
+
     // Location
     locationRequired: 'Требуется доступ к местоположению',
     enableLocation: 'Включить геолокацию',
     locationPermissionDenied: 'Доступ к геолокации запрещен',
     locationError: 'Ошибка геолокации',
-    
+
     // Theme
     switchToDarkMode: 'Переключить на темную тему',
     switchToLightMode: 'Переключить на светлую тему',
-    
+
     // Time
-    now: 'Сейчас',
-    arriving: 'Прибывает'
+    now: 'Только что',
+    arriving: 'Прибывает',
+
+    // Language
+    selectLanguage: 'Выберите язык',
+    language: 'Язык'
   },
-  
+
   sr: {
     // Header
     nearbyTransit: 'Prevoz u blizini',
@@ -72,34 +81,51 @@ const translations = {
     updated: 'Ažurirano',
     lastUpdated: 'Poslednje ažuriranje',
     refresh: 'Osveži',
-    
+
     // Bus Station
     noArrivalsScheduled: 'Nema zakazanih dolazaka',
     distance: 'Udaljenost',
     minutes: 'min',
-    
+
     // Loading
     loading: 'Učitavanje...',
-    
+
     // Location
     locationRequired: 'Potreban je pristup lokaciji',
     enableLocation: 'Omogući lokaciju',
     locationPermissionDenied: 'Pristup lokaciji je odbačen',
     locationError: 'Greška lokacije',
-    
+
     // Theme
     switchToDarkMode: 'Prebaci na tamnu temu',
     switchToLightMode: 'Prebaci na svetlu temu',
-    
+
     // Time
-    now: 'Sada',
-    arriving: 'Stiže'
+    now: 'Upravo',
+    arriving: 'Stiže',
+
+    // Language
+    selectLanguage: 'Odaberite jezik',
+    language: 'Jezik'
   }
 };
 
+const availableLanguages = [
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'sr', name: 'Srpski', flag: '🇷🇸' }
+];
+
 function detectLanguage() {
+  // Check localStorage first
+  const savedLanguage = localStorage.getItem(STORAGE_KEYS.LANGUAGE);
+  if (savedLanguage && translations[savedLanguage]) {
+    return savedLanguage;
+  }
+
+  // Fallback to browser language
   const browserLanguage = navigator.language || navigator.languages[0];
-  
+
   if (browserLanguage.startsWith('ru')) {
     return 'ru';
   } else if (browserLanguage.startsWith('sr')) {
@@ -118,8 +144,15 @@ export function useLocalization() {
 }
 
 export function LocalizationProvider({ children }) {
-  const language = useMemo(() => detectLanguage(), []);
-  
+  const [language, setLanguage] = useState(() => detectLanguage());
+
+  const changeLanguage = (langCode) => {
+    if (translations[langCode]) {
+      setLanguage(langCode);
+      localStorage.setItem(STORAGE_KEYS.LANGUAGE, langCode);
+    }
+  };
+
   const t = useMemo(() => {
     return (key) => {
       return translations[language]?.[key] || translations.en[key] || key;
@@ -128,7 +161,9 @@ export function LocalizationProvider({ children }) {
 
   const value = useMemo(() => ({
     language,
-    t
+    t,
+    changeLanguage,
+    availableLanguages
   }), [language, t]);
 
   return (
