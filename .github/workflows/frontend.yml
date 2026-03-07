@@ -3,7 +3,18 @@ name: Build and Deploy Frontend to GitHub Pages
 on:
   push:
     branches:
-      - main # Запуск при пуше в main
+      - main
+    paths:
+      - 'src/client/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config*.js'
+      - 'tailwind.config.js'
+      - 'postcss.config.js'
+      - 'Dockerfile.front'
+      - '.github/workflows/frontend.yml'
 
 jobs:
   build-and-deploy:
