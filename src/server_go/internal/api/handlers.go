@@ -18,6 +18,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const maxConcurrentStationFetches = 10
+
 func (app *App) HandleStationSearch(c *gin.Context) {
 	city := c.Param("city")
 	query := c.Request.URL.Query()
@@ -70,13 +72,11 @@ func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, 
 	var station *models.Station
 	if cachedStation, found := app.cache.GetCachedStation(city, stationID); found {
 		station = cachedStation.(*models.Station)
-		log.Printf("Using cached station data for %s:%s", city, stationID)
 	}
 
 	var vehicles []models.Vehicle
 	if cachedVehicles, found := app.cache.GetCachedVehicles(city, stationID); found {
 		vehicles = cachedVehicles.([]models.Vehicle)
-		log.Printf("Using cached vehicles for %s:%s (%d vehicles)", city, stationID, len(vehicles))
 	}
 
 	apiKey, exists := app.apiKeys[city]
@@ -84,20 +84,16 @@ func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, 
 		return nil, fmt.Errorf("API key not found for city: %s", city)
 	}
 
-	log.Printf("Using API version %s for city %s", apiKey.API, city)
-
 	if station == nil || vehicles == nil {
 		var stationData []byte
 
-		if apiKey.API == "v1" { // Changed condition to match JS version
-			url := fmt.Sprintf("%s/publicapi/v1/announcement/announcement.php?action=get_announcement_data&station_uid=%s",
+		if apiKey.API == "v1" {
+			apiURL := fmt.Sprintf("%s/publicapi/v1/announcement/announcement.php?action=get_announcement_data&station_uid=%s",
 				apiKey.URL, uid)
-			respData, reqErr := app.getRequest(url, apiKey.Key)
+			respData, reqErr := app.getRequest(apiURL, apiKey.Key)
 			if reqErr != nil {
 				log.Printf("Request error for station %s: %v", stationID, reqErr)
 			} else {
-				log.Printf("Raw v1 response for station %s: %s", stationID, string(respData))
-
 				var jsonResponse interface{}
 				if jsonErr := json.Unmarshal(respData, &jsonResponse); jsonErr == nil {
 					stationData = respData
@@ -106,23 +102,23 @@ func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, 
 				}
 			}
 
-			// Fallback to cache for empty/error responses
-			if stationData == nil || len(stationData) == 0 {
+			// Fallback to in-memory cache for empty/error responses
+			if len(stationData) == 0 {
 				log.Printf("Using fallback data for station %s", stationID)
 				app.mu.RLock()
-				stationData, exists := app.allStations[city][uid]
+				fallbackStation, fallbackExists := app.allStations[city][uid]
 				app.mu.RUnlock()
 
-				if !exists {
+				if !fallbackExists {
 					return nil, fmt.Errorf("station not found in cache")
 				}
 
 				station = &models.Station{
-					Name:     stationData.Name,
+					Name:     fallbackStation.Name,
 					UID:      utils.InterfaceToInt(uid),
 					ID:       stationID,
 					StopID:   stationID,
-					Coords:   stationData.Coords,
+					Coords:   fallbackStation.Coords,
 					Vehicles: []models.Vehicle{},
 				}
 
@@ -132,7 +128,7 @@ func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, 
 				return station, nil
 			}
 		} else { // v2 handling
-			url := fmt.Sprintf("%s/publicapi/v2/api.php", apiKey.URL)
+			apiURL := fmt.Sprintf("%s/publicapi/v2/api.php", apiKey.URL)
 			sessionID := fmt.Sprintf("A%d", time.Now().Unix())
 
 			jsonData := map[string]string{
@@ -141,52 +137,42 @@ func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, 
 			}
 			jsonBytes, _ := json.Marshal(jsonData)
 
-			// Debug logging
-			log.Printf("V2 API Request for city %s, station %s:", city, uid)
-			log.Printf("URL: %s", url)
-			log.Printf("JSON payload: %s", string(jsonBytes))
-
 			base, encErr := crypto.Encrypt(string(jsonBytes), apiKey.V2Key, apiKey.V2IV)
 			if encErr != nil {
-				log.Printf("Encryption failed: %v", encErr)
+				log.Printf("Encryption failed for station %s: %v", stationID, encErr)
 				return nil, fmt.Errorf("v2 encryption error: %v", encErr)
 			}
-			log.Printf("Encrypted base parameter: %s", base)
 
 			payload := fmt.Sprintf("action=data_bulletin&base=%s", base)
-			respData, reqErr := app.postRequest(url, apiKey.Key, payload)
+			respData, reqErr := app.postRequest(apiURL, apiKey.Key, payload)
 			if reqErr != nil {
-				log.Printf("Request failed: %v", reqErr)
+				log.Printf("V2 request failed for station %s: %v", stationID, reqErr)
 				return nil, fmt.Errorf("v2 request error: %v", reqErr)
 			}
-			log.Printf("Raw response data: %s", string(respData))
 
 			decrypted, decErr := crypto.Decrypt(string(respData), apiKey.V2Key, apiKey.V2IV)
 			if decErr != nil {
-				log.Printf("Decryption failed: %v", decErr)
+				log.Printf("Decryption failed for station %s: %v", stationID, decErr)
 				return nil, fmt.Errorf("v2 decryption error: %v", decErr)
 			}
-			log.Printf("Decrypted response: %s", decrypted)
 
 			var v2Response struct {
 				Success bool            `json:"success"`
 				Data    json.RawMessage `json:"data"`
 			}
 			if jsonErr := json.Unmarshal([]byte(decrypted), &v2Response); jsonErr != nil {
-				log.Printf("JSON unmarshal failed: %v", jsonErr)
+				log.Printf("V2 JSON unmarshal failed for station %s: %v", stationID, jsonErr)
 				return nil, fmt.Errorf("v2 unmarshal error: %v", jsonErr)
 			}
 
 			if !v2Response.Success {
-				log.Printf("API reported failure")
 				return nil, fmt.Errorf("invalid station ID")
 			}
 
 			stationData = v2Response.Data
-			log.Printf("V2 API response for station %s: %s", stationID, string(stationData))
 		}
 
-		if stationData != nil && len(stationData) > 0 {
+		if len(stationData) > 0 {
 			transformedStation, transformErr := app.transformStationResponse(stationData, city)
 			if transformErr != nil {
 				log.Printf("Transform error for station %s: %v", stationID, transformErr)
@@ -206,19 +192,19 @@ func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, 
 	// Ensure valid station object
 	if station == nil {
 		app.mu.RLock()
-		stationData, exists := app.allStations[city][uid]
+		cachedStation, cachedExists := app.allStations[city][uid]
 		app.mu.RUnlock()
 
-		if !exists {
+		if !cachedExists {
 			return nil, fmt.Errorf("station not found in cache")
 		}
 
 		station = &models.Station{
-			Name:     stationData.Name,
+			Name:     cachedStation.Name,
 			UID:      utils.InterfaceToInt(uid),
 			ID:       stationID,
 			StopID:   stationID,
-			Coords:   stationData.Coords,
+			Coords:   cachedStation.Coords,
 			Vehicles: []models.Vehicle{},
 		}
 	}
@@ -260,11 +246,14 @@ func (app *App) GetAllStations(city string, lat, lon, rad float64) ([]models.Sta
 
 	var wg sync.WaitGroup
 	results := make([]models.Station, len(nearbyStations))
+	sem := make(chan struct{}, maxConcurrentStationFetches)
 
 	for i, station := range nearbyStations {
 		wg.Add(1)
+		sem <- struct{}{}
 		go func(i int, station models.Station) {
 			defer wg.Done()
+			defer func() { <-sem }()
 
 			query := url.Values{}
 			query.Set("id", station.ID)

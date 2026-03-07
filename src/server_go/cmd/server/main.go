@@ -52,6 +52,9 @@ func main() {
 	// Start cache cleaner
 	app.StartCacheCleaner()
 
+	// Refresh station map every 6 hours
+	app.StartMapRefresher(6 * time.Hour)
+
 	// Initialize router
 	router := gin.New()
 

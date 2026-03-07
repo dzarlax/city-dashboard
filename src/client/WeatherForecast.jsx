@@ -197,7 +197,7 @@ const WeatherForecast = ({ lat, lon }) => {
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="w-5 h-5 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full"></div>
+              <div className="w-5 h-5 bg-blue-500 rounded-full"></div>
               <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">Weather Forecast</h3>
             </div>
             <div className="animate-pulse">
@@ -238,7 +238,7 @@ const WeatherForecast = ({ lat, lon }) => {
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+            <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
               <div className="w-2 h-2 bg-white rounded-full"></div>
             </div>
             <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">

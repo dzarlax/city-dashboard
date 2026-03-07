@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Go binary
+src/server_go/cmd/server/server
+
+# Claude Code local settings
+.claude/
+
 # Line data source files (only generated JSON should be in git)
 lines
 lines.*

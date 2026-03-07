@@ -36,7 +36,11 @@ const translations = {
 
     // Language
     selectLanguage: 'Select Language',
-    language: 'Language'
+    language: 'Language',
+
+    // iOS install prompt
+    iosInstallTitle: 'Add to Home Screen',
+    iosInstallBody: 'Tap {share} then "Add to Home Screen"'
   },
 
   ru: {
@@ -71,7 +75,11 @@ const translations = {
 
     // Language
     selectLanguage: 'Выберите язык',
-    language: 'Язык'
+    language: 'Язык',
+
+    // iOS install prompt
+    iosInstallTitle: 'Добавить на экран «Домой»',
+    iosInstallBody: 'Нажмите {share} затем «На экран "Домой"»'
   },
 
   sr: {
@@ -106,7 +114,11 @@ const translations = {
 
     // Language
     selectLanguage: 'Odaberite jezik',
-    language: 'Jezik'
+    language: 'Jezik',
+
+    // iOS install prompt
+    iosInstallTitle: 'Dodaj na početni ekran',
+    iosInstallBody: 'Tapnite {share} pa "Dodaj na početni ekran"'
   }
 };
 

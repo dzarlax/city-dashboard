@@ -70,6 +70,7 @@ func (app *App) SetupRoutes(router *gin.Engine) {
 			stations.GET("/:city/search", app.HandleStationSearch)
 			stations.GET("/:city/all", app.HandleAllStations)
 		}
+		api.GET("/transit-changes", app.HandleTransitChanges)
 	}
 }
 
@@ -78,6 +79,20 @@ func (app *App) StartCacheCleaner() {
 		ticker := time.NewTicker(5 * time.Minute)
 		for range ticker.C {
 			app.cache.ClearExpiredCache()
+		}
+	}()
+}
+
+func (app *App) StartMapRefresher(interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		for range ticker.C {
+			log.Printf("MapRefresher: refreshing station map...")
+			if err := app.PopulateMap(false); err != nil {
+				log.Printf("MapRefresher: failed to refresh: %v", err)
+			} else {
+				log.Printf("MapRefresher: station map refreshed successfully")
+			}
 		}
 	}()
 }
@@ -95,7 +110,6 @@ func (app *App) getRequest(url, apiKey string) ([]byte, error) {
 	req.Header.Set("X-Api-Authentication", apiKey)
 	req.Header.Set("User-Agent", "okhttp/4.10.0")
 
-	log.Printf("Making request to: %s", url)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -106,25 +120,7 @@ func (app *App) getRequest(url, apiKey string) ([]byte, error) {
 		return nil, fmt.Errorf("request failed with status code %d", resp.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Printf("Response status: %d, Content-Type: %s, Length: %d",
-		resp.StatusCode,
-		resp.Header.Get("Content-Type"),
-		len(body))
-
-	if len(body) > 0 {
-		sampleSize := 100
-		if len(body) < sampleSize {
-			sampleSize = len(body)
-		}
-		log.Printf("Response sample: %s", string(body[:sampleSize]))
-	}
-
-	return body, nil
+	return ioutil.ReadAll(resp.Body)
 }
 
 func (app *App) postRequest(url, apiKey string, payload string) ([]byte, error) {

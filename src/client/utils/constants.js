@@ -1,5 +1,5 @@
 // API Configuration
-export const SERVER_URL = 'https://transport-api.dzarlax.dev';
+export const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? 'https://transport-api.dzarlax.dev';
 
 // Polling intervals (milliseconds)
 export const POLLING_INTERVAL = 10000; // 10 seconds
@@ -30,15 +30,15 @@ export const CITIES = ['bg', 'ns', 'nis'];
 export const CITY_INFO = {
   BG: {
     name: 'Belgrade',
-    gradient: 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border-emerald-200 dark:from-emerald-900/50 dark:to-green-900/50 dark:text-emerald-200 dark:border-emerald-700'
+    badge: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-700'
   },
   NS: {
     name: 'Novi Sad',
-    gradient: 'bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-800 border-blue-200 dark:from-blue-900/50 dark:to-cyan-900/50 dark:text-blue-200 dark:border-blue-700'
+    badge: 'bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-900/30 dark:text-sky-200 dark:border-sky-700'
   },
   NIS: {
     name: 'Niš',
-    gradient: 'bg-gradient-to-r from-purple-100 to-violet-100 text-purple-800 border-purple-200 dark:from-purple-900/50 dark:to-violet-900/50 dark:text-purple-200 dark:border-purple-700'
+    badge: 'bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-200 dark:border-violet-700'
   }
 };
 

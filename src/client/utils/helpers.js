@@ -1,5 +1,6 @@
 import lineMapping from '../line_mapping.json';
 import lineDetails from '../line_details.json';
+import { NOW_ARRIVAL_THRESHOLD, UPCOMING_ARRIVAL_THRESHOLD } from './constants';
 
 /**
  * Format seconds to minutes string
@@ -118,6 +119,40 @@ export const getLineTooltip = (lineNumber, city) => {
 };
 
 /**
+ * Determine transport type from line number and name
+ */
+export const getTransportType = (lineNumber, city, lineName = '') => {
+  if (city === 'BG') {
+    const type = lineDetails[lineNumber]?.type;
+    if (type) return type;
+  }
+
+  // Fallback: keyword matching on lineName
+  const name = (lineName || '').toLowerCase();
+  if (name.includes('трол') || name.includes('trol')) return 'тролејбус';
+  if (name.includes('трам') || name.includes('tram')) return 'трамвај';
+  if (name.includes('воз') || name.includes('voz'))   return 'БГ-воз';
+
+  // Line number prefix patterns
+  const num = (lineNumber || '').toUpperCase();
+  if (num.startsWith('N') || num.startsWith('Н')) return 'ноћне-линије';
+  if (num.startsWith('E') || num.startsWith('Е')) return 'E linije';
+
+  return 'аутобус';
+};
+
+// Visual config per transport type (matches bgprevoz.rs colour scheme)
+export const TRANSPORT_CONFIG = {
+  'аутобус':      { btnClass: 'bg-sky-600 hover:bg-sky-700 text-white' },
+  'трамвај':      { btnClass: 'bg-red-600 hover:bg-red-700 text-white' },
+  'тролејбус':    { btnClass: 'bg-orange-500 hover:bg-orange-600 text-white' },
+  'ноћне-линије': { btnClass: 'bg-indigo-800 hover:bg-indigo-900 text-white' },
+  'БГ-воз':       { btnClass: 'bg-purple-600 hover:bg-purple-700 text-white' },
+  'E linije':     { btnClass: 'bg-green-600 hover:bg-green-700 text-white' },
+  'минибус':      { btnClass: 'bg-teal-600 hover:bg-teal-700 text-white' },
+};
+
+/**
  * Check if vehicle data has changed
  * @param {Object} oldVehicle - Previous vehicle data
  * @param {Object} newVehicle - New vehicle data
@@ -181,7 +216,7 @@ export const extractLineNumber = (vehicle) => {
  * @param {number} threshold - Threshold in seconds
  * @returns {boolean}
  */
-export const isNowArrival = (seconds, threshold = 120) => {
+export const isNowArrival = (seconds, threshold = NOW_ARRIVAL_THRESHOLD) => {
   return seconds < threshold;
 };
 
@@ -191,7 +226,7 @@ export const isNowArrival = (seconds, threshold = 120) => {
  * @param {number} threshold - Threshold in seconds
  * @returns {boolean}
  */
-export const isUpcomingArrival = (seconds, threshold = 300) => {
+export const isUpcomingArrival = (seconds, threshold = UPCOMING_ARRIVAL_THRESHOLD) => {
   return seconds < threshold;
 };
 

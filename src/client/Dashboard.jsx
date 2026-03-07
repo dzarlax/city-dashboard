@@ -6,7 +6,9 @@ import { LoadingGrid } from './components/LoadingCard';
 import LocationPermissionModal from './components/LocationPermissionModal';
 import LocationStatus from './components/LocationStatus';
 import LocationFallbackNotice from './components/LocationFallbackNotice';
-import SortSelector from './components/SortSelector';
+import SettingsSheet from './components/SettingsSheet';
+import IOSInstallPrompt from './components/IOSInstallPrompt';
+import ChangesModal from './components/ChangesModal';
 import geolocationManager from './utils/GeolocationManager';
 import { usePWAGeolocation } from './utils/useVisibilityChange';
 import {
@@ -47,13 +49,37 @@ const fetchWithRetry = async (fetchFn, attempts = MAX_RETRY_ATTEMPTS) => {
   }
 };
 
+const STOPS_SESSION_KEY = 'transit_stops_cache';
+
+const BASE_POLL_INTERVAL = 15000;   // 15s — базовый интервал
+const MAX_POLL_INTERVAL  = 60000;   // 60s — максимум при бэкофф
+const BACKOFF_THRESHOLD  = 3;       // сколько пустых ответов до замедления
+const BACKOFF_FACTOR     = 1.5;
+
 // Modified transit data hook with correct state management
 const useTransitData = (userLocation, config, isTabVisible = true) => {
-  const [stationsMap, setStationsMap] = useState(new Map());
-  const [loading, setLoading] = useState(true);
+  const [stationsMap, setStationsMap] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem(STOPS_SESSION_KEY);
+      if (cached) {
+        const arr = JSON.parse(cached);
+        return new Map(arr.map(s => [createStationKey(s.stopId, s.city.toLowerCase()), s]));
+      }
+    } catch {}
+    return new Map();
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !sessionStorage.getItem(STOPS_SESSION_KEY);
+    } catch {
+      return true;
+    }
+  });
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const previousVehicles = useRef(new Map());
+  const pollIntervalRef = useRef(BASE_POLL_INTERVAL);
+  const noChangeCount = useRef(0);
 
   const fetchStops = useCallback(async () => {
     if (!userLocation || !config.searchRad) return;
@@ -109,8 +135,24 @@ const useTransitData = (userLocation, config, isTabVisible = true) => {
       // Update stations map
       setStationsMap(newStationsData);
 
+      // Persist to sessionStorage for instant display on next page load
+      try {
+        sessionStorage.setItem(STOPS_SESSION_KEY, JSON.stringify([...newStationsData.values()]));
+      } catch {}
+
+      // Adaptive polling: back off if nothing changed, reset on change
       if (hasUpdates) {
+        noChangeCount.current = 0;
+        pollIntervalRef.current = BASE_POLL_INTERVAL;
         setLastUpdated(new Date());
+      } else {
+        noChangeCount.current += 1;
+        if (noChangeCount.current >= BACKOFF_THRESHOLD) {
+          pollIntervalRef.current = Math.min(
+            Math.round(pollIntervalRef.current * BACKOFF_FACTOR),
+            MAX_POLL_INTERVAL
+          );
+        }
       }
 
       setLoading(false);
@@ -122,22 +164,43 @@ const useTransitData = (userLocation, config, isTabVisible = true) => {
   }, [userLocation, config.searchRad]);
 
   useEffect(() => {
-    if (userLocation && isTabVisible) {
-      fetchStops();
-      const interval = setInterval(fetchStops, POLLING_INTERVAL);
-      return () => {
-        clearInterval(interval);
-        previousVehicles.current.clear();
-      };
-    }
+    if (!userLocation || !isTabVisible) return;
+
+    let timeoutId;
+    let cancelled = false;
+
+    const schedule = async () => {
+      await fetchStops();
+      if (!cancelled) {
+        timeoutId = setTimeout(schedule, pollIntervalRef.current);
+      }
+    };
+
+    // Первый вызов немедленно, потом по динамическому интервалу
+    schedule();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      previousVehicles.current.clear();
+      pollIntervalRef.current = BASE_POLL_INTERVAL;
+      noChangeCount.current = 0;
+    };
   }, [userLocation, fetchStops, isTabVisible]);
+
+  const refresh = useCallback(() => {
+    // Сброс бэкоффа при ручном обновлении
+    pollIntervalRef.current = BASE_POLL_INTERVAL;
+    noChangeCount.current = 0;
+    return fetchStops();
+  }, [fetchStops]);
 
   return {
     stops: Array.from(stationsMap.values()),
     loading,
     error,
     lastUpdated,
-    refresh: fetchStops
+    refresh
   };
 };
 
@@ -189,8 +252,8 @@ const useLocationManager = () => {
     }));
   }, []);
 
-  // Use default location (fallback) - вынесено в отдельную функцию без useCallback
-  const useDefaultLocationInternal = async (reason = null) => {
+  // Use default location (fallback)
+  const useDefaultLocationInternal = useCallback(async (reason = null) => {
     const envConfig = await loadEnvConfig();
     setState(prev => ({
       ...prev,
@@ -207,9 +270,9 @@ const useLocationManager = () => {
         accuracy: null
       }
     }));
-  };
+  }, [loadEnvConfig]);
 
-  // Handle geolocation errors - теперь использует внутреннюю функцию
+  // Handle geolocation errors
   const handleLocationError = useCallback(async (error) => {
     console.warn('Geolocation error:', error);
 
@@ -258,12 +321,9 @@ const useLocationManager = () => {
         accuracy: null
       }
     }));
-  }, [loadEnvConfig]);
+  }, [loadEnvConfig, useDefaultLocationInternal]);
 
-  // Обертка для внешнего использования useDefaultLocation
-  const useDefaultLocation = useCallback(async (reason = null) => {
-    await useDefaultLocationInternal(reason);
-  }, [loadEnvConfig]);
+  const useDefaultLocation = useDefaultLocationInternal;
 
   // Request location permission
   const requestLocationPermission = useCallback(async () => {
@@ -373,6 +433,11 @@ const TransitDashboard = () => {
   // Track tab visibility for polling optimization
   const [isTabVisible, setIsTabVisible] = useState(true);
 
+  // Settings sheet (mobile)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // Transit changes modal
+  const [isChangesOpen, setIsChangesOpen] = useState(false);
+
   // Sorting state
   const [sortBy, setSortBy] = useState(() => {
     return localStorage.getItem(STORAGE_KEYS.SORT_BY) || SORT_OPTIONS.DISTANCE;
@@ -446,6 +511,15 @@ const TransitDashboard = () => {
     }
   }, [stops, sortBy]);
 
+  // Collect all line numbers currently visible in the UI
+  const activeLineNumbers = useMemo(() => {
+    const nums = new Set();
+    sortedStops.forEach(stop => {
+      stop.vehicles?.forEach(v => { if (v.lineNumber) nums.add(v.lineNumber); });
+    });
+    return nums;
+  }, [sortedStops]);
+
   // Separate favorite and non-favorite stations
   const { favoriteStops, otherStops } = useMemo(() => {
     const favorites = [];
@@ -463,14 +537,10 @@ const TransitDashboard = () => {
     return { favoriteStops: favorites, otherStops: others };
   }, [sortedStops, favoriteStations]);
 
-  // Handle manual location request from header
-  const handleRequestLocation = useCallback(() => {
-    requestLocationPermission();
-  }, [requestLocationPermission]);
 
   if (setupError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 rounded-xl p-6 shadow-lg">
           <div className="text-center text-red-600 dark:text-red-400">
             <p className="font-semibold">Configuration Error</p>
@@ -483,7 +553,7 @@ const TransitDashboard = () => {
 
   if (!userLocation && !showPermissionModal) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-lg">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4"></div>
@@ -496,9 +566,10 @@ const TransitDashboard = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
-        <div className="w-full px-2 sm:px-3 lg:px-4 py-3 sm:py-4 space-y-4">
-          {/* Header */}
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+
+        {/* Sticky header */}
+        <div className="px-2 sm:px-3 lg:px-4 pt-3 sm:pt-4">
           <Header
             lastUpdated={lastUpdated}
             onRefresh={refresh}
@@ -507,16 +578,22 @@ const TransitDashboard = () => {
             onSortChange={setSortBy}
             searchRadius={searchRadius}
             onRadiusChange={setSearchRadius}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenChanges={() => setIsChangesOpen(true)}
             locationStatus={
               <LocationStatus
                 isUsingGPS={locationStatus.isUsingGPS}
                 isStale={locationStatus.isStale}
                 accuracy={locationStatus.accuracy}
-                onRequestLocation={handleRequestLocation}
+                onRequestLocation={requestLocationPermission}
                 isRequesting={isRequestingLocation}
               />
             }
           />
+        </div>
+
+        {/* Scrollable content */}
+        <div className="w-full px-2 sm:px-3 lg:px-4 pb-6 pt-4 space-y-4">
 
           {/* Fallback Notice */}
           {fallbackNotice?.show && (
@@ -528,7 +605,7 @@ const TransitDashboard = () => {
           )}
 
           {/* Main Content Area */}
-          <main className="space-y-6" role="main" aria-label="Bus stations list">
+          <main className="space-y-4" role="main" aria-label="Bus stations list">
             {!userLocation ? (
               <div className="bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-xl p-8 shadow-sm animate-fade-in">
                 <div className="text-center">
@@ -538,9 +615,7 @@ const TransitDashboard = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </div>
-                  <p className="text-gray-500 dark:text-gray-400 font-medium text-lg mb-2">
-                    Location Required
-                  </p>
+                  <p className="text-gray-500 dark:text-gray-400 font-medium text-lg mb-2">Location Required</p>
                   <p className="text-gray-400 dark:text-gray-500 text-sm mb-4">
                     Please allow location access to see nearby bus stops
                   </p>
@@ -560,11 +635,11 @@ const TransitDashboard = () => {
                 <div className="text-center">
                   <div className="w-12 h-12 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-3">
                     <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                     </svg>
                   </div>
                   <p className="text-red-600 dark:text-red-400 font-semibold">{error}</p>
-                  <button 
+                  <button
                     onClick={refresh}
                     className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
                   >
@@ -583,7 +658,22 @@ const TransitDashboard = () => {
                         Favorites ({favoriteStops.length})
                       </h2>
                     </div>
-                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8">
+
+                    {/* Mobile: horizontal scroll */}
+                    <div className="md:hidden flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory -mx-2 px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {favoriteStops.map((stop) => (
+                        <div key={`${stop.stopId}-${stop.city}`} className="flex-none w-[300px] snap-start">
+                          <BusStation
+                            {...stop}
+                            isFavorite={true}
+                            onToggleFavorite={toggleFavorite}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop: grid */}
+                    <div className="hidden md:grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {favoriteStops.map((stop) => (
                         <BusStation
                           key={`${stop.stopId}-${stop.city}`}
@@ -607,12 +697,12 @@ const TransitDashboard = () => {
                         </h2>
                       </div>
                     )}
-                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8">
+                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {otherStops.map((stop) => (
                         <BusStation
                           key={`${stop.stopId}-${stop.city}`}
                           {...stop}
-                          isFavorite={isStationFavorite(stop.stopId, stop.city)}
+                          isFavorite={false}
                           onToggleFavorite={toggleFavorite}
                         />
                       ))}
@@ -625,18 +715,16 @@ const TransitDashboard = () => {
                 <div className="text-center">
                   <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg className="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                     </svg>
                   </div>
-                  <p className="text-gray-500 dark:text-gray-400 font-medium text-lg mb-2">
-                    No bus stops found
-                  </p>
+                  <p className="text-gray-500 dark:text-gray-400 font-medium text-lg mb-2">No bus stops found</p>
                   <p className="text-gray-400 dark:text-gray-500 text-sm mb-4">
                     Try moving closer to a bus stop or check your location
                   </p>
                   {locationStatus.isUsingGPS && (
                     <button
-                      onClick={handleRequestLocation}
+                      onClick={requestLocationPermission}
                       className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
                     >
                       Refresh Location
@@ -648,6 +736,24 @@ const TransitDashboard = () => {
           </main>
         </div>
       </div>
+
+      {/* Mobile settings sheet */}
+      <SettingsSheet
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        searchRadius={searchRadius}
+        onRadiusChange={setSearchRadius}
+      />
+
+      <IOSInstallPrompt />
+
+      <ChangesModal
+        isOpen={isChangesOpen}
+        onClose={() => setIsChangesOpen(false)}
+        activeLines={activeLineNumbers}
+      />
 
       {/* Location Permission Modal */}
       <LocationPermissionModal

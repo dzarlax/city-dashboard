@@ -1,0 +1,37 @@
+
+# Development compose — hot-reload for both frontend and backend.
+# Prerequisites:
+#   1. Copy .env.example to .env and fill in real values
+#   2. docker-compose -f docker-compose-dev.yaml up
+#
+# Frontend:  http://localhost:5173  (Vite HMR)
+# Backend:   http://localhost:3001
+
+services:
+  backend:
+    image: golang:1.21-alpine
+    container_name: city_dashboard_dev_backend
+    working_dir: /app
+    volumes:
+      - ./src/server_go:/app
+    command: go run ./cmd/server/main.go
+    ports:
+      - "3001:3001"
+    env_file: .env
+    restart: unless-stopped
+
+  frontend:
+    image: node:20-alpine
+    container_name: city_dashboard_dev_frontend
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: sh -c "npm install && npx vite --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_SERVER_URL=http://localhost:3001
+    depends_on:
+      - backend
+    restart: unless-stopped
