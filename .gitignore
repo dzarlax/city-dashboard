@@ -35,12 +35,10 @@ lines.*
 .env
 docker-compose.yml
 city-dashboard.tar
-package-lock.json
 docker-compose.yaml
 Archive/server/apikeys.json
 src/server_go/apikeys.json
 Archive/docker-compose.yml_old
-package-lock.json
 
 custom_components/city_dashboard/www/*
 !custom_components/city_dashboard/www/.gitkeep
