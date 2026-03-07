@@ -91,7 +91,7 @@ const Header = ({
               aria-label="Show transit changes"
             >
               <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Измене</span>
+              <span className="hidden sm:inline">{t('changes')}</span>
             </button>
 
             {/* Refresh button — always visible */}

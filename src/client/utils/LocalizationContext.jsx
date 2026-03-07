@@ -40,7 +40,15 @@ const translations = {
 
     // iOS install prompt
     iosInstallTitle: 'Add to Home Screen',
-    iosInstallBody: 'Tap {share} then "Add to Home Screen"'
+    iosInstallBody: 'Tap {share} then "Add to Home Screen"',
+
+    // Transit changes
+    changes: 'Changes',
+    changesTitle: 'Current Changes',
+    tryAgain: 'Try again',
+    readMore: 'Read more',
+    previous: 'Previous',
+    next: 'Next',
   },
 
   ru: {
@@ -79,7 +87,15 @@ const translations = {
 
     // iOS install prompt
     iosInstallTitle: 'Добавить на экран «Домой»',
-    iosInstallBody: 'Нажмите {share} затем «На экран "Домой"»'
+    iosInstallBody: 'Нажмите {share} затем «На экран "Домой"»',
+
+    // Transit changes
+    changes: 'Изменения',
+    changesTitle: 'Актуальные изменения',
+    tryAgain: 'Попробовать снова',
+    readMore: 'Подробнее',
+    previous: 'Назад',
+    next: 'Вперёд',
   },
 
   sr: {
@@ -118,7 +134,15 @@ const translations = {
 
     // iOS install prompt
     iosInstallTitle: 'Dodaj na početni ekran',
-    iosInstallBody: 'Tapnite {share} pa "Dodaj na početni ekran"'
+    iosInstallBody: 'Tapnite {share} pa "Dodaj na početni ekran"',
+
+    // Transit changes
+    changes: 'Izmene',
+    changesTitle: 'Aktuelne izmene',
+    tryAgain: 'Pokušaj ponovo',
+    readMore: 'Opširnije',
+    previous: 'Prethodna',
+    next: 'Sledeća',
   }
 };
 

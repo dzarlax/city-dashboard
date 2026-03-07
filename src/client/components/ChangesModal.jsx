@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, AlertTriangle, ExternalLink, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import Portal from './Portal';
 import { SERVER_URL } from '../utils/constants';
+import { useLocalization } from '../utils/LocalizationContext';
 
 const PAGE_SIZE = 8;
 
 const ChangesModal = ({ isOpen, onClose, activeLines }) => {
+  const { t } = useLocalization();
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -82,7 +84,7 @@ const ChangesModal = ({ isOpen, onClose, activeLines }) => {
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-500" />
             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              Актуелне измене
+              {t('changesTitle')}
             </h2>
             {total > 0 && (
               <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium">
@@ -124,7 +126,7 @@ const ChangesModal = ({ isOpen, onClose, activeLines }) => {
                 onClick={fetchChanges}
                 className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm"
               >
-                Покушај поново
+                {t('tryAgain')}
               </button>
             </div>
           )}
@@ -180,7 +182,7 @@ const ChangesModal = ({ isOpen, onClose, activeLines }) => {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium"
                   >
-                    Опширније
+                    {t('readMore')}
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 )}
@@ -199,7 +201,7 @@ const ChangesModal = ({ isOpen, onClose, activeLines }) => {
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
-              Претходна
+              {t('previous')}
             </button>
 
             <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -211,7 +213,7 @@ const ChangesModal = ({ isOpen, onClose, activeLines }) => {
               disabled={page === totalPages}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
-              Следећа
+              {t('next')}
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
