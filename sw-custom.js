@@ -1,5 +1,5 @@
 // Custom Service Worker для City Dashboard PWA
-const CACHE_NAME = 'city-dashboard-v1';
+const CACHE_NAME = 'city-dashboard-mmgo26z8';
 
 // Определяем SERVER_IP в зависимости от окружения
 const SERVER_IP = (() => {
@@ -26,10 +26,9 @@ const STATIC_CACHE_URLS = [
   '/dash.svg'
 ];
 
-// API endpoints для кэширования
+// API endpoints для кэширования (только стабильные данные)
 const API_CACHE_PATTERNS = [
   new RegExp(`${SERVER_IP}/api/env`),
-  new RegExp(`${SERVER_IP}/api/stations/.*`)
 ];
 
 // Установка Service Worker
@@ -77,9 +76,26 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Обрабатываем только http/https запросы — chrome-extension и прочие пропускаем
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
+
+  // Транзитные данные - только сеть, никакого кэша (данные устаревают за секунды)
+  if (url.pathname.startsWith('/api/stations/')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // Не кэшируем /api/lines - пропускаем через сеть без кэширования
   if (url.pathname === '/api/lines') {
     event.respondWith(fetch(request));
+    return;
+  }
+
+  // Навигационные запросы - Network First для свежего index.html
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstStrategy(request));
     return;
   }
 
