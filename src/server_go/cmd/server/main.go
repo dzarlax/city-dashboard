@@ -60,17 +60,20 @@ func main() {
 			log.Fatalf("DB: failed to create pool: %v", err)
 		}
 		if err := pool.Ping(context.Background()); err != nil {
-			log.Fatalf("DB: failed to ping: %v", err)
-		}
-		log.Printf("DB: connected successfully")
+			log.Printf("DB: failed to ping, running without persistence: %v", err)
+			pool.Close()
+		} else {
+			log.Printf("DB: connected successfully")
 
-		var store gtfs.DBStore
-		if err := store.CreateSchema(context.Background(), pool); err != nil {
-			log.Fatalf("DB: failed to create schema: %v", err)
+			var store gtfs.DBStore
+			if err := store.CreateSchema(context.Background(), pool); err != nil {
+				log.Printf("DB: failed to create schema, running without persistence: %v", err)
+				pool.Close()
+			} else {
+				app.SetDB(pool)
+				defer pool.Close()
+			}
 		}
-
-		app.SetDB(pool)
-		defer pool.Close()
 	} else {
 		log.Printf("DB: DATABASE_URL not set — running without Postgres persistence")
 	}
