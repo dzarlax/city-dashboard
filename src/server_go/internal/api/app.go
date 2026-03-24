@@ -37,7 +37,7 @@ func NewApp() *App {
 	}
 }
 
-// LoadGTFS loads a GTFS dataset for the given city from dir.
+// LoadGTFS loads a GTFS dataset for the given city from a local directory.
 func (app *App) LoadGTFS(city, dir string) error {
 	data, err := gtfs.Load(dir)
 	if err != nil {
@@ -48,6 +48,38 @@ func (app *App) LoadGTFS(city, dir string) error {
 	app.mu.Unlock()
 	log.Printf("GTFS: loaded dataset for city %q from %s", city, dir)
 	return nil
+}
+
+// LoadGTFSFromURL downloads a GTFS ZIP from url and loads it for the given city.
+func (app *App) LoadGTFSFromURL(city, url string) error {
+	data, err := gtfs.DownloadAndLoad(url)
+	if err != nil {
+		return err
+	}
+	app.mu.Lock()
+	app.gtfsData[city] = data
+	// Reset station map so PopulateMap re-runs with fresh GTFS data
+	app.allStations[city] = nil
+	app.idUIDMap[city] = nil
+	app.mu.Unlock()
+	log.Printf("GTFS: refreshed dataset for city %q from URL", city)
+
+	// Re-populate station map (picks up new GTFS stops)
+	return app.PopulateMap(false)
+}
+
+// StartGTFSRefresher refreshes GTFS data for city from url on the given interval.
+func (app *App) StartGTFSRefresher(city, url string, interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			log.Printf("GTFSRefresher: updating %q from %s", city, url)
+			if err := app.LoadGTFSFromURL(city, url); err != nil {
+				log.Printf("GTFSRefresher: failed to update %q: %v", city, err)
+			}
+		}
+	}()
 }
 
 func (app *App) LoadAPIKeysFromEnv(keys map[string]map[string]string) error {

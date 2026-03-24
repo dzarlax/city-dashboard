@@ -49,16 +49,29 @@ func main() {
 		log.Fatalf("Failed to load API keys: %v", err)
 	}
 
-	// Load GTFS data if directories are configured
-	gtfsCities := map[string]string{
-		"bg": os.Getenv("GTFS_BG_DIR"),
+	// Load GTFS data: prefer URL over local directory
+	type gtfsSource struct {
+		city string
+		url  string
+		dir  string
 	}
-	for city, dir := range gtfsCities {
-		if dir == "" {
-			continue
-		}
-		if err := app.LoadGTFS(city, dir); err != nil {
-			log.Printf("Warning: failed to load GTFS for %s: %v", city, err)
+	gtfsSources := []gtfsSource{
+		{"bg", os.Getenv("GTFS_BG_URL"), os.Getenv("GTFS_BG_DIR")},
+	}
+	for _, src := range gtfsSources {
+		if src.url != "" {
+			log.Printf("GTFS: fetching %q from URL", src.city)
+			if err := app.LoadGTFSFromURL(src.city, src.url); err != nil {
+				log.Printf("Warning: failed to load GTFS from URL for %s: %v", src.city, err)
+			} else {
+				// Refresh every 24 hours
+				app.StartGTFSRefresher(src.city, src.url, 24*time.Hour)
+			}
+		} else if src.dir != "" {
+			log.Printf("GTFS: loading %q from local dir %s", src.city, src.dir)
+			if err := app.LoadGTFS(src.city, src.dir); err != nil {
+				log.Printf("Warning: failed to load GTFS for %s: %v", src.city, err)
+			}
 		}
 	}
 
