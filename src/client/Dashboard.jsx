@@ -9,6 +9,7 @@ import LocationFallbackNotice from './components/LocationFallbackNotice';
 import SettingsSheet from './components/SettingsSheet';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import ChangesModal from './components/ChangesModal';
+import MaintenanceBanner from './components/MaintenanceBanner';
 import geolocationManager from './utils/GeolocationManager';
 import { usePWAGeolocation } from './utils/useVisibilityChange';
 import {
@@ -566,6 +567,7 @@ const TransitDashboard = () => {
 
   return (
     <>
+      <MaintenanceBanner />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
 
         {/* Sticky header */}
