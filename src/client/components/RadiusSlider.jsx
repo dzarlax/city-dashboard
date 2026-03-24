@@ -110,7 +110,7 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
         <Portal>
           <div
             ref={dropdownRef}
-            className="fixed w-64 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-[9999] animate-fade-in"
+            className="fixed w-72 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-[9999] animate-fade-in"
             style={{
               top: `${position.top}px`,
               right: `${position.right}px`
