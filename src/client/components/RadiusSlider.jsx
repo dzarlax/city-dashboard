@@ -100,7 +100,7 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
           aria-expanded={isOpen}
         >
           <Maximize className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-200 hidden sm:inline">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
             {currentLabel}
           </span>
         </button>

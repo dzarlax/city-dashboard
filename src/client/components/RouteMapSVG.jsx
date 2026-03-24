@@ -3,7 +3,6 @@ import { X, RefreshCw, MapPin } from 'lucide-react';
 import Portal from './Portal';
 import { SERVER_URL } from '../utils/constants';
 import { useLocalization } from '../utils/LocalizationContext';
-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
