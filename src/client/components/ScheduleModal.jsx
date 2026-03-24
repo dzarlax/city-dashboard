@@ -103,7 +103,7 @@ const ScheduleModal = ({
   const departureTimes = useMemo(() => {
     if (!schedule) return [];
     const match = schedule.find(
-      (route) => String(route.lineNumber) === String(lineNumber)
+      (route) => String(route.line_number ?? route.lineNumber) === String(lineNumber)
     );
     return match?.departures ?? match?.times ?? [];
   }, [schedule, lineNumber]);

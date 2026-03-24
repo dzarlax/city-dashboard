@@ -1,37 +1,22 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, RefreshCw, MapPin } from 'lucide-react';
 import Portal from './Portal';
 import { SERVER_URL } from '../utils/constants';
 import { useLocalization } from '../utils/LocalizationContext';
 
-const PADDING = 24;
-const W = 400;
-const H = 280;
-
-function projectPoints(allPoints) {
-  if (!allPoints.length) return { project: () => [0, 0] };
-  const lats = allPoints.map(p => p[0]);
-  const lons = allPoints.map(p => p[1]);
-  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons), maxLon = Math.max(...lons);
-  const latRange = maxLat - minLat || 0.001;
-  const lonRange = maxLon - minLon || 0.001;
-  return {
-    minLat, maxLat, minLon, maxLon,
-    project: ([lat, lon]) => [
-      PADDING + ((lon - minLon) / lonRange) * (W - PADDING * 2),
-      PADDING + ((maxLat - lat) / latRange) * (H - PADDING * 2),
-    ],
-  };
-}
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const DIR_COLORS = ['#0098DA', '#00A859'];
 
-const RouteMapSVG = ({ isOpen, onClose, lineNumber, lineName, city, routeColor, stopLat, stopLon }) => {
+const RouteMapLeaflet = ({ isOpen, onClose, lineNumber, lineName, city, routeColor, stopLat, stopLon }) => {
   const { t } = useLocalization();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const layersRef = useRef([]);
 
   const fetch_ = useCallback(async () => {
     if (!lineNumber || !city) return;
@@ -61,16 +46,77 @@ const RouteMapSVG = ({ isOpen, onClose, lineNumber, lineName, city, routeColor, 
     return () => document.removeEventListener('keydown', h);
   }, [isOpen, onClose]);
 
-  const { directions, proj } = useMemo(() => {
+  // Init map once the container div is mounted
+  useEffect(() => {
+    if (!isOpen || !mapRef.current || mapInstanceRef.current) return;
+
+    const map = L.map(mapRef.current, {
+      zoomControl: true,
+      attributionControl: true,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(map);
+
+    mapInstanceRef.current = map;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+    };
+  }, [isOpen]);
+
+  // Draw route + stop marker whenever data or stop coords change
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Clear previous layers
+    layersRef.current.forEach(l => map.removeLayer(l));
+    layersRef.current = [];
+
+    const primaryColor = routeColor ? `#${routeColor}` : DIR_COLORS[0];
     const dirs = data?.directions ?? [];
-    const allPts = dirs.flatMap(d => d.points ?? []);
-    if (stopLat != null && stopLon != null) allPts.push([stopLat, stopLon]);
-    return { directions: dirs, proj: projectPoints(allPts) };
-  }, [data, stopLat, stopLon]);
+    const bounds = [];
+
+    dirs.forEach((dir, idx) => {
+      const pts = (dir.points ?? []).map(([lat, lon]) => [lat, lon]);
+      if (!pts.length) return;
+      const color = idx === 0 ? primaryColor : (DIR_COLORS[1] ?? '#00A859');
+      const poly = L.polyline(pts, {
+        color,
+        weight: idx === 0 ? 5 : 3,
+        opacity: idx === 0 ? 0.9 : 0.6,
+      }).addTo(map);
+      layersRef.current.push(poly);
+      pts.forEach(p => bounds.push(p));
+    });
+
+    if (stopLat != null && stopLon != null) {
+      const stopIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:#EF4444;border:3px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      const marker = L.marker([stopLat, stopLon], { icon: stopIcon }).addTo(map);
+      layersRef.current.push(marker);
+      bounds.push([stopLat, stopLon]);
+    }
+
+    if (bounds.length) {
+      map.fitBounds(bounds, { padding: [24, 24] });
+    } else if (stopLat != null && stopLon != null) {
+      map.setView([stopLat, stopLon], 15);
+    }
+  }, [data, stopLat, stopLon, routeColor]);
 
   if (!isOpen) return null;
 
   const primaryColor = routeColor ? `#${routeColor}` : DIR_COLORS[0];
+  const dirs = data?.directions ?? [];
 
   return (
     <Portal>
@@ -110,17 +156,17 @@ const RouteMapSVG = ({ isOpen, onClose, lineNumber, lineName, city, routeColor, 
           </div>
         </div>
 
-        {/* SVG area */}
+        {/* Map area */}
         <div className="p-3">
           {loading && (
-            <div className="flex items-center justify-center h-48 gap-2">
+            <div className="flex items-center justify-center h-64 gap-2">
               <RefreshCw className="w-5 h-5 text-primary-500 animate-spin" />
               <span className="text-sm text-gray-500 dark:text-gray-400">{t('loading')}</span>
             </div>
           )}
 
           {!loading && error && (
-            <div className="flex flex-col items-center justify-center h-48 gap-3">
+            <div className="flex flex-col items-center justify-center h-64 gap-3">
               <p className="text-sm text-red-500 dark:text-red-400">{t('routeLoadError')}: {error}</p>
               <button onClick={fetch_} className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
                 {t('tryAgain')}
@@ -128,54 +174,24 @@ const RouteMapSVG = ({ isOpen, onClose, lineNumber, lineName, city, routeColor, 
             </div>
           )}
 
-          {!loading && !error && directions.length === 0 && data !== null && (
-            <div className="flex items-center justify-center h-48">
+          {!loading && !error && dirs.length === 0 && data !== null && (
+            <div className="flex items-center justify-center h-64">
               <p className="text-sm text-gray-400 dark:text-gray-500">{t('noRouteData')}</p>
             </div>
           )}
 
-          {!loading && !error && directions.length > 0 && (
-            <svg
-              viewBox={`0 0 ${W} ${H}`}
-              className="w-full rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
-              style={{ aspectRatio: `${W}/${H}` }}
-            >
-              {directions.map((dir, idx) => {
-                const pts = (dir.points ?? []).map(p => proj.project(p));
-                const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-                const color = idx === 0 ? primaryColor : DIR_COLORS[1] ?? '#00A859';
-                return (
-                  <path
-                    key={idx}
-                    d={d}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={idx === 0 ? 3 : 2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity={idx === 0 ? 1 : 0.6}
-                  />
-                );
-              })}
-
-              {/* Current stop marker */}
-              {stopLat != null && stopLon != null && (() => {
-                const [x, y] = proj.project([stopLat, stopLon]);
-                return (
-                  <g>
-                    <circle cx={x} cy={y} r={7} fill="white" stroke="#EF4444" strokeWidth={2} />
-                    <circle cx={x} cy={y} r={4} fill="#EF4444" />
-                  </g>
-                );
-              })()}
-            </svg>
-          )}
+          {/* Leaflet map container — always rendered when open so map can init */}
+          <div
+            ref={mapRef}
+            className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700"
+            style={{ height: '260px', display: loading || error || (data !== null && dirs.length === 0) ? 'none' : 'block' }}
+          />
         </div>
 
         {/* Direction legend */}
-        {!loading && !error && directions.length > 1 && (
+        {!loading && !error && dirs.length > 1 && (
           <div className="flex items-center gap-4 px-4 pb-3 pt-0">
-            {directions.map((_, idx) => (
+            {dirs.map((_, idx) => (
               <div key={idx} className="flex items-center gap-1.5">
                 <div className="w-6 h-1.5 rounded-full" style={{ backgroundColor: idx === 0 ? primaryColor : (DIR_COLORS[1] ?? '#00A859'), opacity: idx === 0 ? 1 : 0.6 }} />
                 <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -190,4 +206,4 @@ const RouteMapSVG = ({ isOpen, onClose, lineNumber, lineName, city, routeColor, 
   );
 };
 
-export default RouteMapSVG;
+export default RouteMapLeaflet;
