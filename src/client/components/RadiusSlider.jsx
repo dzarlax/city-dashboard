@@ -127,12 +127,12 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
               </div>
 
               {/* Presets */}
-              <div className="grid grid-cols-5 gap-2 mb-4">
+              <div className="grid grid-cols-5 gap-1 mb-4">
                 {radiusOptions.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => handleRadiusChange(option.value)}
-                    className={`px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    className={`py-1.5 text-xs font-medium rounded-md transition-colors ${
                       tempRadius === option.value
                         ? 'bg-primary-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
