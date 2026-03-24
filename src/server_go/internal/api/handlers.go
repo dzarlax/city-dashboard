@@ -18,6 +18,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const gtfsMaxArrivals = 10
+
 const maxConcurrentStationFetches = 10
 
 func (app *App) HandleStationSearch(c *gin.Context) {
@@ -259,8 +261,33 @@ func (app *App) GetAllStations(city string, lat, lon, rad float64) ([]models.Sta
 			query.Set("id", station.ID)
 
 			realTimeData, err := app.GetStationInfo(city, query)
-			if err != nil {
-				log.Printf("Failed to fetch real-time data for station %s: %v", station.ID, err)
+			if err != nil || len(realTimeData.Vehicles) == 0 {
+				// Fall back to GTFS schedule if available
+				app.mu.RLock()
+				gd := app.gtfsData[city]
+				app.mu.RUnlock()
+
+				if gd != nil {
+					deps := gd.ScheduledArrivals(station.ID, time.Now(), gtfsMaxArrivals)
+					vehicles := make([]models.Vehicle, 0, len(deps))
+					for _, d := range deps {
+						vehicles = append(vehicles, models.Vehicle{
+							LineNumber:      d.LineNumber,
+							LineName:        d.LineName,
+							SecondsLeft:     d.SecondsLeft,
+							StationsBetween: 0,
+							GarageNo:        "",
+							Coords:          []string{},
+						})
+					}
+					station.Vehicles = vehicles
+					results[i] = station
+					return
+				}
+
+				if err != nil {
+					log.Printf("Failed to fetch real-time data for station %s: %v", station.ID, err)
+				}
 				results[i] = station
 				results[i].Vehicles = []models.Vehicle{}
 				return

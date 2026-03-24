@@ -49,6 +49,19 @@ func main() {
 		log.Fatalf("Failed to load API keys: %v", err)
 	}
 
+	// Load GTFS data if directories are configured
+	gtfsCities := map[string]string{
+		"bg": os.Getenv("GTFS_BG_DIR"),
+	}
+	for city, dir := range gtfsCities {
+		if dir == "" {
+			continue
+		}
+		if err := app.LoadGTFS(city, dir); err != nil {
+			log.Printf("Warning: failed to load GTFS for %s: %v", city, err)
+		}
+	}
+
 	// Start cache cleaner
 	app.StartCacheCleaner()
 

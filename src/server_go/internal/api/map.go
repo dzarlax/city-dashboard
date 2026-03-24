@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"transit-server/internal/models"
@@ -91,7 +92,35 @@ func (app *App) PopulateMap(force bool) error {
 			city, len(app.allStations[city]))
 	}
 
+	// For cities with no stations loaded from API, fall back to GTFS stops.
 	app.mu.Lock()
+	for city, gd := range app.gtfsData {
+		if len(app.allStations[city]) == 0 && gd != nil {
+			log.Printf("PopulateMap: no API stations for %q — falling back to GTFS (%d stops)", city, len(gd.Stops))
+			if app.allStations[city] == nil {
+				app.allStations[city] = make(map[string]models.Station)
+			}
+			if app.idUIDMap[city] == nil {
+				app.idUIDMap[city] = make(map[string]string)
+			}
+			for _, s := range gd.Stops {
+				coords := []string{
+					strconv.FormatFloat(s.Lat, 'f', 10, 64),
+					strconv.FormatFloat(s.Lon, 'f', 10, 64),
+				}
+				app.allStations[city][s.StopID] = models.Station{
+					Name:     s.Name,
+					UID:      0,
+					ID:       s.StopID,
+					StopID:   s.StopID,
+					Coords:   coords,
+					Vehicles: make([]models.Vehicle, 0),
+				}
+				app.idUIDMap[city][s.StopID] = s.StopID
+			}
+			log.Printf("PopulateMap: GTFS fallback loaded %d stations for %q", len(app.allStations[city]), city)
+		}
+	}
 	app.mapReady = true
 	app.mu.Unlock()
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"transit-server/internal/cache"
+	"transit-server/internal/gtfs"
 	"transit-server/internal/models"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,7 @@ type App struct {
 	apiKeys     map[string]models.APIKey
 	idUIDMap    map[string]map[string]string
 	allStations map[string]map[string]models.Station
+	gtfsData    map[string]*gtfs.Data // city -> GTFS dataset
 	mapReady    bool
 	mu          sync.RWMutex
 }
@@ -31,7 +33,21 @@ func NewApp() *App {
 		apiKeys:     make(map[string]models.APIKey),
 		idUIDMap:    make(map[string]map[string]string),
 		allStations: make(map[string]map[string]models.Station),
+		gtfsData:    make(map[string]*gtfs.Data),
 	}
+}
+
+// LoadGTFS loads a GTFS dataset for the given city from dir.
+func (app *App) LoadGTFS(city, dir string) error {
+	data, err := gtfs.Load(dir)
+	if err != nil {
+		return err
+	}
+	app.mu.Lock()
+	app.gtfsData[city] = data
+	app.mu.Unlock()
+	log.Printf("GTFS: loaded dataset for city %q from %s", city, dir)
+	return nil
 }
 
 func (app *App) LoadAPIKeysFromEnv(keys map[string]map[string]string) error {
