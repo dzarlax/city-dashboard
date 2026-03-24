@@ -139,7 +139,7 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
               >
                 <Star
                   className={`w-4 h-4 transition-colors duration-200 ${
-                    isFavorite ? 'fill-amber-400 text-amber-400' : 'text-gray-400 dark:text-gray-500 hover:text-amber-400'
+                    isFavorite ? 'fill-amber-400 text-amber-400' : 'text-gray-400 dark:text-gray-300 hover:text-amber-400'
                   }`}
                 />
               </button>
@@ -312,7 +312,7 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
                   <div className="flex items-center gap-1 mt-1">
                     <button
                       onClick={(e) => { e.stopPropagation(); setScheduleModal({ lineNumber: group.lineNumber, lineName: group.lineName, routeColor: group.routeColor, routeTextColor: group.routeTextColor }); }}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                       title={t('fullSchedule')}
                     >
                       <CalendarClock className="w-3 h-3" />
@@ -321,7 +321,7 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
                     {city === 'BG' && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setMapModal({ lineNumber: group.lineNumber, lineName: group.lineName, routeColor: group.routeColor }); }}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-gray-600 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                         title={t('routeMap')}
                       >
                         <MapPin className="w-3 h-3" />

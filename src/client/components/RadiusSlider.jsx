@@ -95,11 +95,11 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
       <div ref={buttonRef}>
         <button
           onClick={toggleDropdown}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors shrink-0 whitespace-nowrap"
           aria-label="Search radius"
           aria-expanded={isOpen}
         >
-          <Maximize className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+          <Maximize className="w-4 h-4 shrink-0 text-gray-600 dark:text-gray-300" />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
             {currentLabel}
           </span>
@@ -119,7 +119,7 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  Search Radius
+                  {t('searchRadius')}
                 </h3>
                 <span className="text-sm font-medium text-primary-600 dark:text-primary-400">
                   {tempRadius >= 1000 ? `${tempRadius / 1000}km` : `${tempRadius}m`}

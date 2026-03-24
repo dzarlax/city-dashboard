@@ -50,6 +50,9 @@ const translations = {
     previous: 'Previous',
     next: 'Next',
 
+    // Radius
+    searchRadius: 'Search Radius',
+
     // Schedule fallback
     scheduledData: 'Schedule',
     scheduledDataTitle: 'Scheduled data (not live)',
@@ -114,6 +117,9 @@ const translations = {
     previous: 'Назад',
     next: 'Вперёд',
 
+    // Radius
+    searchRadius: 'Радиус поиска',
+
     // Schedule fallback
     scheduledData: 'Расписание',
     scheduledDataTitle: 'Данные по расписанию (не live)',
@@ -177,6 +183,9 @@ const translations = {
     readMore: 'Opširnije',
     previous: 'Prethodna',
     next: 'Sledeća',
+
+    // Radius
+    searchRadius: 'Radijus pretrage',
 
     // Schedule fallback
     scheduledData: 'Raspored',

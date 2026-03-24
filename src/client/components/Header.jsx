@@ -59,7 +59,7 @@ const Header = ({
           <div className="flex items-center gap-2">
 
             {/* Desktop-only controls */}
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2 flex-shrink-0">
               <LanguageSelector />
               <SortSelector currentSort={sortBy} onSortChange={onSortChange} />
               <RadiusSlider radius={searchRadius} onRadiusChange={onRadiusChange} />
