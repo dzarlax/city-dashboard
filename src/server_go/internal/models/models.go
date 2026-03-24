@@ -29,4 +29,5 @@ type Vehicle struct {
 	StationsBetween int      `json:"stationsBetween"`
 	GarageNo        string   `json:"garageNo"`
 	Coords          []string `json:"coords"`
+	Scheduled       bool     `json:"scheduled,omitempty"` // true when data comes from static GTFS schedule
 }

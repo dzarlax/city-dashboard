@@ -278,6 +278,7 @@ func (app *App) GetAllStations(city string, lat, lon, rad float64) ([]models.Sta
 							StationsBetween: 0,
 							GarageNo:        "",
 							Coords:          []string{},
+							Scheduled:       true,
 						})
 					}
 					station.Vehicles = vehicles

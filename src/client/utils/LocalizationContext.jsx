@@ -49,6 +49,10 @@ const translations = {
     readMore: 'Read more',
     previous: 'Previous',
     next: 'Next',
+
+    // Schedule fallback
+    scheduledData: 'Schedule',
+    scheduledDataTitle: 'Scheduled data (not live)',
   },
 
   ru: {
@@ -96,6 +100,10 @@ const translations = {
     readMore: 'Подробнее',
     previous: 'Назад',
     next: 'Вперёд',
+
+    // Schedule fallback
+    scheduledData: 'Расписание',
+    scheduledDataTitle: 'Данные по расписанию (не live)',
   },
 
   sr: {
@@ -143,6 +151,10 @@ const translations = {
     readMore: 'Opširnije',
     previous: 'Prethodna',
     next: 'Sledeća',
+
+    // Schedule fallback
+    scheduledData: 'Raspored',
+    scheduledDataTitle: 'Podaci po rasporedu (nije live)',
   }
 };
 

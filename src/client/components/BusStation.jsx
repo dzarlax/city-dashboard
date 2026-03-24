@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Bus, TramFront, TrainFront, Moon, Zap, Star, ExternalLink, ChevronDown, ChevronRight, Clock, MapPin } from 'lucide-react';
+import { Bus, TramFront, TrainFront, Moon, Zap, Star, ExternalLink, ChevronDown, ChevronRight, Clock, MapPin, CalendarClock } from 'lucide-react';
 import { useLocalization } from '../utils/LocalizationContext';
 import { formatMinutes, isVehicleChanged, getStationUrl, getLineUrl, getLineTooltip, getTransportType, TRANSPORT_CONFIG } from '../utils/helpers';
 import { CITY_INFO, NOW_ARRIVAL_THRESHOLD, UPCOMING_ARRIVAL_THRESHOLD, MAX_ARRIVALS_PER_ROUTE } from '../utils/constants';
@@ -59,14 +59,16 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
     group.arrivals.some(arrival => arrival.secondsLeft < UPCOMING_ARRIVAL_THRESHOLD)
   );
 
+  const isScheduled = vehicles.length > 0 && vehicles.every(v => v.scheduled);
+
   return (
     <article
       className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden animate-fade-in focus-within:ring-2 focus-within:ring-primary-500"
       tabIndex={0}
       aria-label={`Bus station ${name}, stop ID ${stopId}, ${distance} away`}
     >
-      {/* Active indicator dot */}
-      {hasUpcomingArrivals && (
+      {/* Active indicator dot — only for live data */}
+      {hasUpcomingArrivals && !isScheduled && (
         <div className="absolute top-2 left-2 w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
       )}
 
@@ -95,13 +97,22 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
                   {name}
                 </h3>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
                   #{stopId}
                 </span>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${CITY_INFO[city]?.badge || 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600'}`}>
                   {city}
                 </span>
+                {isScheduled && (
+                  <span
+                    className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700"
+                    title={t('scheduledDataTitle')}
+                  >
+                    <CalendarClock className="w-3 h-3" />
+                    {t('scheduledData')}
+                  </span>
+                )}
               </div>
             </div>
           </div>
