@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -17,12 +18,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ErrForbidden is returned when the upstream API responds with HTTP 403.
+var ErrForbidden = errors.New("403 Forbidden")
+
+const circuitBreakerThreshold = 5
+
+// cityCircuit tracks consecutive API failures for one city.
+type cityCircuit struct {
+	consecutive403 int
+	disabled       bool
+}
+
 type App struct {
 	cache       *cache.Cache
 	apiKeys     map[string]models.APIKey
 	idUIDMap    map[string]map[string]string
 	allStations map[string]map[string]models.Station
 	gtfsData    map[string]*gtfs.Data // city -> GTFS dataset
+	circuits    map[string]*cityCircuit
 	mapReady    bool
 	mu          sync.RWMutex
 }
@@ -34,6 +47,48 @@ func NewApp() *App {
 		idUIDMap:    make(map[string]map[string]string),
 		allStations: make(map[string]map[string]models.Station),
 		gtfsData:    make(map[string]*gtfs.Data),
+		circuits:    make(map[string]*cityCircuit),
+	}
+}
+
+// isAPIDisabled reports whether the live API for city is currently disabled.
+func (app *App) isAPIDisabled(city string) bool {
+	app.mu.RLock()
+	defer app.mu.RUnlock()
+	cb := app.circuits[city]
+	return cb != nil && cb.disabled
+}
+
+// recordAPISuccess resets the circuit breaker for city.
+func (app *App) recordAPISuccess(city string) {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if cb := app.circuits[city]; cb != nil && cb.consecutive403 > 0 {
+		cb.consecutive403 = 0
+		if cb.disabled {
+			cb.disabled = false
+			log.Printf("CircuitBreaker: %s API re-enabled after successful response", city)
+		}
+	}
+}
+
+// record403 increments the 403 counter for city and disables the API if threshold is hit.
+func (app *App) record403(city string) {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	cb := app.circuits[city]
+	if cb == nil {
+		cb = &cityCircuit{}
+		app.circuits[city] = cb
+	}
+	if cb.disabled {
+		return
+	}
+	cb.consecutive403++
+	if cb.consecutive403 >= circuitBreakerThreshold {
+		cb.disabled = true
+		log.Printf("CircuitBreaker: %s API disabled after %d consecutive 403 errors — switching to GTFS schedule only",
+			city, cb.consecutive403)
 	}
 }
 
@@ -119,7 +174,35 @@ func (app *App) SetupRoutes(router *gin.Engine) {
 			stations.GET("/:city/all", app.HandleAllStations)
 		}
 		api.GET("/transit-changes", app.HandleTransitChanges)
+		api.GET("/status", app.HandleStatus)
 	}
+}
+
+func (app *App) HandleStatus(c *gin.Context) {
+	app.mu.RLock()
+	defer app.mu.RUnlock()
+
+	cities := make(map[string]gin.H)
+	for city := range app.apiKeys {
+		cb := app.circuits[city]
+		disabled := cb != nil && cb.disabled
+		consecutive403 := 0
+		if cb != nil {
+			consecutive403 = cb.consecutive403
+		}
+		_, hasGTFS := app.gtfsData[city]
+		cities[city] = gin.H{
+			"apiDisabled":    disabled,
+			"consecutive403": consecutive403,
+			"gtfsLoaded":     hasGTFS,
+			"stationsLoaded": len(app.allStations[city]),
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"cities": cities,
+		"time":   time.Now().Format(time.RFC3339),
+	})
 }
 
 func (app *App) StartCacheCleaner() {
@@ -164,6 +247,9 @@ func (app *App) getRequest(url, apiKey string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, ErrForbidden
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("request failed with status code %d", resp.StatusCode)
 	}
@@ -191,6 +277,9 @@ func (app *App) postRequest(url, apiKey string, payload string) ([]byte, error) 
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, ErrForbidden
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("request failed with status code %d", resp.StatusCode)
 	}

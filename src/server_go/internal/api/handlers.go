@@ -65,6 +65,11 @@ func (app *App) HandleAllStations(c *gin.Context) {
 }
 
 func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, error) {
+	// Circuit breaker: skip live API entirely if city is disabled
+	if app.isAPIDisabled(city) {
+		return nil, ErrForbidden
+	}
+
 	uid, err := app.GetStationUID(city, query)
 	if err != nil {
 		return nil, err
@@ -94,6 +99,10 @@ func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, 
 				apiKey.URL, uid)
 			respData, reqErr := app.getRequest(apiURL, apiKey.Key)
 			if reqErr != nil {
+				if reqErr == ErrForbidden {
+					app.record403(city)
+					return nil, ErrForbidden
+				}
 				log.Printf("Request error for station %s: %v", stationID, reqErr)
 			} else {
 				var jsonResponse interface{}
@@ -148,6 +157,10 @@ func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, 
 			payload := fmt.Sprintf("action=data_bulletin&base=%s", base)
 			respData, reqErr := app.postRequest(apiURL, apiKey.Key, payload)
 			if reqErr != nil {
+				if reqErr == ErrForbidden {
+					app.record403(city)
+					return nil, ErrForbidden
+				}
 				log.Printf("V2 request failed for station %s: %v", stationID, reqErr)
 				return nil, fmt.Errorf("v2 request error: %v", reqErr)
 			}
@@ -175,6 +188,7 @@ func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, 
 		}
 
 		if len(stationData) > 0 {
+			app.recordAPISuccess(city)
 			transformedStation, transformErr := app.transformStationResponse(stationData, city)
 			if transformErr != nil {
 				log.Printf("Transform error for station %s: %v", stationID, transformErr)
