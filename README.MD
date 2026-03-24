@@ -1,17 +1,24 @@
 # City Dashboard
-City Dashboard is a web application that provides real-time transport information and weather forecasts for various cities. The application is built using React for the frontend and Go for the backend.
+City Dashboard is a real-time public transit information display for Serbian cities (Belgrade, Novi Sad, Niš). It's a React-based PWA that shows nearby bus stops with live arrival times based on the user's geolocation. The backend is written in Go.
 
 ## Features
 
-- Real-time transport information for multiple cities
-- Weather forecast for the next 12 hours
-- Responsive design for both desktop and mobile devices
+- Real-time transport information for Belgrade, Novi Sad, and Niš
+- GTFS static schedule fallback — when live data is unavailable, the app displays scheduled arrivals from official GTFS feeds (auto-downloaded daily from data.gov.rs)
+- Route details: route colors, full-day schedule view, and route map
+- Maintenance mode overlay when a city's API is down
+- Circuit breaker to gracefully handle unresponsive city APIs
+- PostgreSQL persistence for GTFS data (optional — server runs without Postgres)
+- Responsive design for both desktop and mobile devices (PWA with background geolocation)
+- Multi-language support (English, Russian, Serbian)
+- Dark / light theme
 - Caching mechanism to reduce API calls and improve performance
 
 ## Technologies Used
 
 - **Frontend**: React, Tailwind CSS, Vite
-- **Backend**: Go, Gin, Axios
+- **Backend**: Go, Gin
+- **Database**: PostgreSQL (optional, for GTFS data persistence)
 - **Build Tools**: Docker, GitHub Actions
 
 ## Getting Started
@@ -19,14 +26,15 @@ City Dashboard is a web application that provides real-time transport informatio
 ### Prerequisites
 
 - Node.js (v20 or later)
-- Docker
 - Go (v1.21 or later)
+- Docker (optional)
+- PostgreSQL (optional, for GTFS data persistence)
 
 ### Installation
 
 1. Clone the repository:
     ```sh
-    git clone https://github.com/your-username/city-dashboard.git
+    git clone https://github.com/dzarlax/city-dashboard.git
     cd city-dashboard
     ```
 
@@ -41,7 +49,6 @@ City Dashboard is a web application that provides real-time transport informatio
     REACT_APP_BELGRADE_LAT=44.7866
     REACT_APP_BELGRADE_LON=20.4489
     REACT_APP_SEARCH_RAD=500
-    REACT_APP_WEATHER_API_KEY=your_openweathermap_api_key
     ```
 
 ### Running the Application
@@ -105,7 +112,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      WEATHER_API_KEY: "openweather_ali_key"
+      WEATHER_API_KEY: "openweather_api_key"
       BELGRADE_LAT: "default coordinates"
       BELGRADE_LON: "default coordinates"
       SEARCH_RAD: "desired radius"
@@ -120,7 +127,22 @@ services:
       NIS_API_NAME: "Niš"
       NIS_API_URL: "xxx"
       NIS_API_KEY: "xxx"
+      DATABASE_URL: "postgres://user:pass@db:5432/city_dashboard"  # optional
     command: /app/server
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: city_dashboard
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
 ```
 
 To start the backend service, run:
@@ -128,6 +150,20 @@ To start the backend service, run:
 ```sh
 docker-compose up backend
 ```
+
+> **Note:** PostgreSQL is optional. If `DATABASE_URL` is not set or the database is unreachable, the server will still run and keep GTFS data in memory.
+
+## GTFS Static Schedule
+
+The backend automatically downloads GTFS feeds from [data.gov.rs](https://data.gov.rs) on startup and refreshes them daily. This provides:
+
+- **Schedule fallback** — when live arrival data is unavailable (e.g. API outage), scheduled arrival times are shown instead, marked with a clock icon
+- **Route colors** — each line is displayed in its official color from the GTFS feed
+- **Full-day schedule** — users can open a modal to see all departures for a route at a given stop
+- **Route map** — visual route shape rendered from GTFS shape data
+- **Circuit breaker** — if a city API returns errors repeatedly, the backend stops calling it and relies on GTFS data
+
+GTFS data can be persisted to PostgreSQL (see Docker Compose example above) or kept in memory.
 
 ## Updating Transport Line Data
 
