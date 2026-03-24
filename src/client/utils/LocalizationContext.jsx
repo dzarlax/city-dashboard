@@ -53,6 +53,19 @@ const translations = {
     // Schedule fallback
     scheduledData: 'Schedule',
     scheduledDataTitle: 'Scheduled data (not live)',
+
+    // Schedule modal
+    fullSchedule: 'Full Schedule',
+    noScheduleData: 'No schedule data available',
+    scheduleLoadError: 'Failed to load schedule',
+
+    // Route map modal
+    routeMap: 'Route Map',
+    route: 'route',
+    noRouteData: 'No route shape data available',
+    routeLoadError: 'Failed to load route',
+
+    scheduledModeNotice: 'showing scheduled data (live API unavailable)',
   },
 
   ru: {
@@ -104,6 +117,19 @@ const translations = {
     // Schedule fallback
     scheduledData: 'Расписание',
     scheduledDataTitle: 'Данные по расписанию (не live)',
+
+    // Schedule modal
+    fullSchedule: 'Полное расписание',
+    noScheduleData: 'Данные расписания недоступны',
+    scheduleLoadError: 'Ошибка загрузки расписания',
+
+    // Route map modal
+    routeMap: 'Маршрут на карте',
+    route: 'маршрут',
+    noRouteData: 'Данные маршрута недоступны',
+    routeLoadError: 'Ошибка загрузки маршрута',
+
+    scheduledModeNotice: 'показывает расписание (live-данные недоступны)',
   },
 
   sr: {
@@ -155,6 +181,19 @@ const translations = {
     // Schedule fallback
     scheduledData: 'Raspored',
     scheduledDataTitle: 'Podaci po rasporedu (nije live)',
+
+    // Schedule modal
+    fullSchedule: 'Ceo raspored',
+    noScheduleData: 'Nema podataka o rasporedu',
+    scheduleLoadError: 'Greška pri učitavanju rasporeda',
+
+    // Route map modal
+    routeMap: 'Mapa rute',
+    route: 'ruta',
+    noRouteData: 'Nema podataka o ruti',
+    routeLoadError: 'Greška pri učitavanju rute',
+
+    scheduledModeNotice: 'prikazuje raspored (live podaci nisu dostupni)',
   }
 };
 

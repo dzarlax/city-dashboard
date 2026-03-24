@@ -3,6 +3,8 @@ import { Bus, TramFront, TrainFront, Moon, Zap, Star, ExternalLink, ChevronDown,
 import { useLocalization } from '../utils/LocalizationContext';
 import { formatMinutes, isVehicleChanged, getStationUrl, getLineUrl, getLineTooltip, getTransportType, TRANSPORT_CONFIG } from '../utils/helpers';
 import { CITY_INFO, NOW_ARRIVAL_THRESHOLD, UPCOMING_ARRIVAL_THRESHOLD, MAX_ARRIVALS_PER_ROUTE } from '../utils/constants';
+import ScheduleModal from './ScheduleModal';
+import RouteMapSVG from './RouteMapSVG';
 
 const TRANSPORT_ICON = {
   'трамвај':      TramFront,
@@ -17,6 +19,8 @@ const TRANSPORT_ICON = {
 const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, isFavorite, onToggleFavorite }) => {
   const { t } = useLocalization();
   const [expandedRoutes, setExpandedRoutes] = useState({});
+  const [scheduleModal, setScheduleModal] = useState(null); // { lineNumber, lineName, routeColor, routeTextColor }
+  const [mapModal, setMapModal] = useState(null); // { lineNumber, lineName, routeColor }
 
   const toggleRouteDetails = (lineNumber) => {
     setExpandedRoutes(prev => ({
@@ -36,6 +40,11 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
           lineNumber: vehicle.lineNumber,
           lineName: vehicle.lineName,
           stationName: vehicle.stationName,
+          routeColor: vehicle.routeColor || '',
+          routeTextColor: vehicle.routeTextColor || '',
+          fareAmount: vehicle.fareAmount || 0,
+          firstDeparture: vehicle.firstDeparture || '',
+          lastDeparture: vehicle.lastDeparture || '',
           arrivals: [],
         };
       }
@@ -149,7 +158,16 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
               const isExpanded = expandedRoutes[group.lineNumber];
               const lineTooltip = city === 'BG' ? getLineTooltip(group.lineNumber, city) : null;
               const transportType = getTransportType(group.lineNumber, city, group.lineName);
-              const btnClass = TRANSPORT_CONFIG[transportType]?.btnClass || TRANSPORT_CONFIG['аутобус'].btnClass;
+
+              // Use official GTFS color if available, fall back to transport config
+              const hasOfficialColor = group.routeColor && group.routeColor.length === 6;
+              const btnStyle = hasOfficialColor
+                ? { backgroundColor: `#${group.routeColor}`, color: `#${group.routeTextColor || 'FFFFFF'}` }
+                : {};
+              const btnClass = hasOfficialColor
+                ? 'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors duration-150'
+                : `inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors duration-150 ${TRANSPORT_CONFIG[transportType]?.btnClass || TRANSPORT_CONFIG['аутобус'].btnClass}`;
+
               const TransportIcon = TRANSPORT_ICON[transportType] || Bus;
 
               return (
@@ -159,7 +177,8 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => toggleRouteDetails(group.lineNumber)}
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors duration-150 ${btnClass}`}
+                          className={btnClass}
+                          style={btnStyle}
                           aria-label={isExpanded ? `Hide details for line ${group.lineNumber}` : `Show details for line ${group.lineNumber}`}
                           aria-expanded={isExpanded}
                         >
@@ -275,6 +294,41 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
                         })}
                     </div>
                   </div>
+
+                  {group.firstDeparture && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Clock className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        {group.firstDeparture} → {group.lastDeparture}
+                      </span>
+                      {group.fareAmount > 0 && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 font-medium border border-amber-200 dark:border-amber-700">
+                          {group.fareAmount} RSD
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-1 mt-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setScheduleModal({ lineNumber: group.lineNumber, lineName: group.lineName, routeColor: group.routeColor, routeTextColor: group.routeTextColor }); }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      title={t('fullSchedule')}
+                    >
+                      <CalendarClock className="w-3 h-3" />
+                      <span>{t('fullSchedule')}</span>
+                    </button>
+                    {city === 'BG' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setMapModal({ lineNumber: group.lineNumber, lineName: group.lineName, routeColor: group.routeColor }); }}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        title={t('routeMap')}
+                      >
+                        <MapPin className="w-3 h-3" />
+                        <span>{t('routeMap')}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -288,6 +342,31 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
           </div>
         )}
       </div>
+
+      {scheduleModal && (
+        <ScheduleModal
+          isOpen={!!scheduleModal}
+          onClose={() => setScheduleModal(null)}
+          stopId={stopId}
+          city={city}
+          lineNumber={scheduleModal.lineNumber}
+          lineName={scheduleModal.lineName}
+          routeColor={scheduleModal.routeColor}
+          routeTextColor={scheduleModal.routeTextColor}
+        />
+      )}
+      {mapModal && (
+        <RouteMapSVG
+          isOpen={!!mapModal}
+          onClose={() => setMapModal(null)}
+          lineNumber={mapModal.lineNumber}
+          lineName={mapModal.lineName}
+          city={city}
+          routeColor={mapModal.routeColor}
+          stopLat={null}
+          stopLon={null}
+        />
+      )}
     </article>
   );
 }, (prevProps, nextProps) => {

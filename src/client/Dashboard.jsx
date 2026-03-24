@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { MapPin, Star } from 'lucide-react';
+import { MapPin, Star, CalendarClock } from 'lucide-react';
 import Header from './components/Header';
 import BusStation from './components/BusStation';
 import { LoadingGrid } from './components/LoadingCard';
@@ -9,7 +9,6 @@ import LocationFallbackNotice from './components/LocationFallbackNotice';
 import SettingsSheet from './components/SettingsSheet';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import ChangesModal from './components/ChangesModal';
-import MaintenanceBanner from './components/MaintenanceBanner';
 import geolocationManager from './utils/GeolocationManager';
 import { usePWAGeolocation } from './utils/useVisibilityChange';
 import {
@@ -32,6 +31,7 @@ import {
   sortStationsByArrivalTime,
   sortStationsByName
 } from './utils/helpers';
+import { useLocalization } from './utils/LocalizationContext';
 
 // Retry helper with exponential backoff
 const fetchWithRetry = async (fetchFn, attempts = MAX_RETRY_ATTEMPTS) => {
@@ -417,6 +417,7 @@ const useLocationManager = () => {
 };
 
 const TransitDashboard = () => {
+  const { t } = useLocalization();
   const {
     userLocation,
     config,
@@ -521,6 +522,17 @@ const TransitDashboard = () => {
     return nums;
   }, [sortedStops]);
 
+  // Detect cities running on scheduled data (circuit breaker / live API unavailable)
+  const scheduledCities = useMemo(() => {
+    const cities = new Set();
+    stops.forEach(stop => {
+      if (stop.vehicles?.length > 0 && stop.vehicles.every(v => v.scheduled) && stop.city) {
+        cities.add(stop.city);
+      }
+    });
+    return cities;
+  }, [stops]);
+
   // Separate favorite and non-favorite stations
   const { favoriteStops, otherStops } = useMemo(() => {
     const favorites = [];
@@ -567,7 +579,6 @@ const TransitDashboard = () => {
 
   return (
     <>
-      <MaintenanceBanner />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
 
         {/* Sticky header */}
@@ -596,6 +607,16 @@ const TransitDashboard = () => {
 
         {/* Scrollable content */}
         <div className="w-full px-2 sm:px-3 lg:px-4 pb-6 pt-4 space-y-4">
+
+          {/* Scheduled mode notice */}
+          {scheduledCities.size > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-300">
+              <CalendarClock className="w-4 h-4 flex-shrink-0" />
+              <span>
+                {[...scheduledCities].join(', ')}: {t('scheduledModeNotice')}
+              </span>
+            </div>
+          )}
 
           {/* Fallback Notice */}
           {fallbackNotice?.show && (
