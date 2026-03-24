@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -10,8 +11,10 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"transit-server/internal/api"
+	"transit-server/internal/gtfs"
 )
 
 const PORT = 3001
@@ -47,6 +50,29 @@ func main() {
 	// Pass API keys to the app
 	if err := app.LoadAPIKeysFromEnv(apiKeys); err != nil {
 		log.Fatalf("Failed to load API keys: %v", err)
+	}
+
+	// Connect to Postgres if DATABASE_URL is set
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		log.Printf("DB: connecting to Postgres...")
+		pool, err := pgxpool.New(context.Background(), dbURL)
+		if err != nil {
+			log.Fatalf("DB: failed to create pool: %v", err)
+		}
+		if err := pool.Ping(context.Background()); err != nil {
+			log.Fatalf("DB: failed to ping: %v", err)
+		}
+		log.Printf("DB: connected successfully")
+
+		var store gtfs.DBStore
+		if err := store.CreateSchema(context.Background(), pool); err != nil {
+			log.Fatalf("DB: failed to create schema: %v", err)
+		}
+
+		app.SetDB(pool)
+		defer pool.Close()
+	} else {
+		log.Printf("DB: DATABASE_URL not set — running without Postgres persistence")
 	}
 
 	// Load GTFS data: prefer URL over local directory

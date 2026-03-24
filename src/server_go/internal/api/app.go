@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 	"transit-server/internal/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // ErrForbidden is returned when the upstream API responds with HTTP 403.
@@ -36,6 +38,7 @@ type App struct {
 	allStations map[string]map[string]models.Station
 	gtfsData    map[string]*gtfs.Data // city -> GTFS dataset
 	circuits    map[string]*cityCircuit
+	db          *pgxpool.Pool // optional Postgres connection pool
 	mapReady    bool
 	mu          sync.RWMutex
 }
@@ -49,6 +52,13 @@ func NewApp() *App {
 		gtfsData:    make(map[string]*gtfs.Data),
 		circuits:    make(map[string]*cityCircuit),
 	}
+}
+
+// SetDB attaches a Postgres connection pool for GTFS persistence.
+func (app *App) SetDB(db *pgxpool.Pool) {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	app.db = db
 }
 
 // isAPIDisabled reports whether the live API for city is currently disabled.
@@ -106,11 +116,41 @@ func (app *App) LoadGTFS(city, dir string) error {
 }
 
 // LoadGTFSFromURL downloads a GTFS ZIP from url and loads it for the given city.
+// If a Postgres pool is configured and the stored data is less than 24 hours old,
+// the data is loaded from the database instead of re-downloading.
+// After a successful download+parse the data is saved to the database.
 func (app *App) LoadGTFSFromURL(city, url string) error {
+	const maxAge = 24 * time.Hour
+
+	app.mu.RLock()
+	db := app.db
+	app.mu.RUnlock()
+
+	var store gtfs.DBStore
+
+	// Try to load from DB if available and fresh
+	if db != nil && store.IsDataFresh(context.Background(), db, city, maxAge) {
+		log.Printf("GTFS: loading %q from database (data is fresh)", city)
+		data, err := store.LoadFromDB(context.Background(), db, city)
+		if err != nil {
+			log.Printf("GTFS: DB load failed for %q, falling back to download: %v", city, err)
+		} else {
+			app.mu.Lock()
+			app.gtfsData[city] = data
+			app.allStations[city] = nil
+			app.idUIDMap[city] = nil
+			app.mu.Unlock()
+			log.Printf("GTFS: loaded %q from database successfully", city)
+			return app.PopulateMap(false)
+		}
+	}
+
+	log.Printf("GTFS: downloading %q from URL %s", city, url)
 	data, err := gtfs.DownloadAndLoad(url)
 	if err != nil {
 		return err
 	}
+
 	app.mu.Lock()
 	app.gtfsData[city] = data
 	// Reset station map so PopulateMap re-runs with fresh GTFS data
@@ -118,6 +158,17 @@ func (app *App) LoadGTFSFromURL(city, url string) error {
 	app.idUIDMap[city] = nil
 	app.mu.Unlock()
 	log.Printf("GTFS: refreshed dataset for city %q from URL", city)
+
+	// Persist to DB if available
+	if db != nil {
+		log.Printf("GTFS: saving %q to database...", city)
+		if err := store.SaveToDB(context.Background(), db, city, data); err != nil {
+			log.Printf("GTFS: failed to save %q to database: %v", city, err)
+			// Non-fatal: continue serving from in-memory data
+		} else {
+			log.Printf("GTFS: saved %q to database successfully", city)
+		}
+	}
 
 	// Re-populate station map (picks up new GTFS stops)
 	return app.PopulateMap(false)
