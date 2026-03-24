@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -27,11 +28,21 @@ type Trip struct {
 	RouteID   string
 	ServiceID string
 	Headsign  string
+	ShapeID   string
 }
 
 type Route struct {
-	ShortName string
-	LongName  string
+	ShortName  string
+	LongName   string
+	Color      string
+	TextColor  string
+	FareAmount float64
+}
+
+// ShapePoint is a single lat/lon point on a route shape.
+type ShapePoint struct {
+	Lat float64
+	Lon float64
 }
 
 type StopTime struct {
@@ -50,6 +61,30 @@ type calendarException struct {
 	ExceptionType int    // 1=added, 2=removed
 }
 
+// ScheduledDeparture is a simplified vehicle representation from GTFS schedule.
+type ScheduledDeparture struct {
+	LineNumber     string
+	LineName       string
+	SecondsLeft    int
+	RouteColor     string
+	RouteTextColor string
+	FareAmount     float64
+	FirstDeparture string // "04:10"
+	LastDeparture  string // "24:35"
+}
+
+// DayRoute holds all departures for a route/headsign combination from a stop for a full day.
+type DayRoute struct {
+	LineNumber     string   `json:"line_number"`
+	LineName       string   `json:"line_name"`
+	RouteColor     string   `json:"route_color"`
+	RouteTextColor string   `json:"route_text_color"`
+	FareAmount     float64  `json:"fare_amount"`
+	FirstDeparture string   `json:"first_departure"`
+	LastDeparture  string   `json:"last_departure"`
+	Departures     []string `json:"departures"`
+}
+
 // Data holds the fully loaded GTFS dataset.
 type Data struct {
 	// stop_id -> Stop
@@ -62,22 +97,31 @@ type Data struct {
 	Trips map[string]*Trip
 	// route_id -> Route
 	Routes map[string]*Route
+	// shortName -> routeID
+	RouteByShortName map[string]string
+	// shapeID -> ordered []ShapePoint
+	Shapes map[string][]ShapePoint
 	// service_id -> calendar rule
 	calendar map[string]calendarRule
 	// service_id -> []exception
 	calendarDates map[string][]calendarException
+	// fare_id -> price (unexported, used during load only)
+	farePrice map[string]float64
 }
 
 // Load reads all GTFS files from dir and returns a populated Data.
 func Load(dir string) (*Data, error) {
 	d := &Data{
-		Stops:         make(map[string]*Stop),
-		StopsByCode:   make(map[string]*Stop),
-		StopTimes:     make(map[string][]StopTime),
-		Trips:         make(map[string]*Trip),
-		Routes:        make(map[string]*Route),
-		calendar:      make(map[string]calendarRule),
-		calendarDates: make(map[string][]calendarException),
+		Stops:            make(map[string]*Stop),
+		StopsByCode:      make(map[string]*Stop),
+		StopTimes:        make(map[string][]StopTime),
+		Trips:            make(map[string]*Trip),
+		Routes:           make(map[string]*Route),
+		RouteByShortName: make(map[string]string),
+		Shapes:           make(map[string][]ShapePoint),
+		calendar:         make(map[string]calendarRule),
+		calendarDates:    make(map[string][]calendarException),
+		farePrice:        make(map[string]float64),
 	}
 
 	steps := []struct {
@@ -90,6 +134,9 @@ func Load(dir string) (*Data, error) {
 		{"calendar.txt", loadCalendar},
 		{"calendar_dates.txt", loadCalendarDates},
 		{"stop_times.txt", loadStopTimes},
+		{"fare_attributes.txt", loadFareAttributes},
+		{"fare_rules.txt", loadFareRules},
+		{"shapes.txt", loadShapes},
 	}
 
 	for _, s := range steps {
@@ -100,12 +147,22 @@ func Load(dir string) (*Data, error) {
 		}
 	}
 
-	log.Printf("GTFS: loaded %d stops, %d trips, %d routes",
-		len(d.Stops), len(d.Trips), len(d.Routes))
+	// Sort each stop's StopTimes slice by DepartureTime.
+	for stopID, times := range d.StopTimes {
+		sort.Slice(times, func(i, j int) bool {
+			return times[i].DepartureTime < times[j].DepartureTime
+		})
+		d.StopTimes[stopID] = times
+	}
+
+	log.Printf("GTFS: loaded %d stops, %d trips, %d routes, %d shapes",
+		len(d.Stops), len(d.Trips), len(d.Routes), len(d.Shapes))
 	return d, nil
 }
 
-// ScheduledArrivals returns the next N departures for a GTFS stop_id at the given time.
+// ScheduledArrivals returns upcoming departures for a GTFS stop_id within 2 hours of t.
+// It scans ALL active stop times to compute FirstDeparture/LastDeparture per route+headsign,
+// then emits one ScheduledDeparture per departure in the [now, now+2h] window, sorted by SecondsLeft.
 func (d *Data) ScheduledArrivals(stopID string, t time.Time, maxResults int) []ScheduledDeparture {
 	active := d.activeServiceIDs(t)
 	if len(active) == 0 {
@@ -113,11 +170,51 @@ func (d *Data) ScheduledArrivals(stopID string, t time.Time, maxResults int) []S
 	}
 
 	nowSec := timeToSeconds(t)
-	// Also consider trips that departed after midnight (departure > 86400)
-	// by checking [nowSec, nowSec + 2h]
 	window := nowSec + 2*3600
 
 	times := d.StopTimes[stopID]
+
+	// Group ALL active departures by (routeID+"|"+headsign) to compute first/last.
+	type groupKey struct {
+		routeID  string
+		headsign string
+	}
+	type groupMeta struct {
+		minDep int
+		maxDep int
+		route  *Route
+	}
+
+	allGroups := make(map[groupKey]*groupMeta)
+
+	for _, st := range times {
+		trip := d.Trips[st.TripID]
+		if trip == nil {
+			continue
+		}
+		if !active[trip.ServiceID] {
+			continue
+		}
+		route := d.Routes[trip.RouteID]
+		if route == nil {
+			continue
+		}
+		k := groupKey{routeID: trip.RouteID, headsign: trip.Headsign}
+		gm, ok := allGroups[k]
+		if !ok {
+			gm = &groupMeta{minDep: st.DepartureTime, maxDep: st.DepartureTime, route: route}
+			allGroups[k] = gm
+		} else {
+			if st.DepartureTime < gm.minDep {
+				gm.minDep = st.DepartureTime
+			}
+			if st.DepartureTime > gm.maxDep {
+				gm.maxDep = st.DepartureTime
+			}
+		}
+	}
+
+	// Emit one ScheduledDeparture per upcoming departure in the 2h window.
 	var results []ScheduledDeparture
 
 	for _, st := range times {
@@ -135,23 +232,140 @@ func (d *Data) ScheduledArrivals(stopID string, t time.Time, maxResults int) []S
 		if route == nil {
 			continue
 		}
-		results = append(results, ScheduledDeparture{
-			LineNumber:  route.ShortName,
-			LineName:    trip.Headsign,
-			SecondsLeft: st.DepartureTime - nowSec,
-		})
+
+		k := groupKey{routeID: trip.RouteID, headsign: trip.Headsign}
+		gm := allGroups[k]
+
+		dep := ScheduledDeparture{
+			LineNumber:     route.ShortName,
+			LineName:       trip.Headsign,
+			SecondsLeft:    st.DepartureTime - nowSec,
+			RouteColor:     route.Color,
+			RouteTextColor: route.TextColor,
+			FareAmount:     route.FareAmount,
+		}
+		if gm != nil {
+			dep.FirstDeparture = secondsToHHMM(gm.minDep)
+			dep.LastDeparture = secondsToHHMM(gm.maxDep)
+		}
+		results = append(results, dep)
 		if len(results) >= maxResults {
 			break
 		}
 	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].SecondsLeft < results[j].SecondsLeft
+	})
 	return results
 }
 
-// ScheduledDeparture is a simplified vehicle representation from GTFS schedule.
-type ScheduledDeparture struct {
-	LineNumber  string
-	LineName    string
-	SecondsLeft int
+// FullDaySchedule returns all departures for the day grouped by route+headsign.
+// Results are sorted by LineNumber; Departures within each DayRoute are sorted.
+func (d *Data) FullDaySchedule(stopID string, t time.Time) []DayRoute {
+	active := d.activeServiceIDs(t)
+	if len(active) == 0 {
+		return nil
+	}
+
+	times := d.StopTimes[stopID]
+
+	type groupKey struct {
+		routeID  string
+		headsign string
+	}
+	type groupVal struct {
+		route      *Route
+		departures []int
+	}
+
+	groups := make(map[groupKey]*groupVal)
+	var order []groupKey // preserve first-seen order before final sort
+
+	for _, st := range times {
+		trip := d.Trips[st.TripID]
+		if trip == nil {
+			continue
+		}
+		if !active[trip.ServiceID] {
+			continue
+		}
+		route := d.Routes[trip.RouteID]
+		if route == nil {
+			continue
+		}
+		k := groupKey{routeID: trip.RouteID, headsign: trip.Headsign}
+		gv, ok := groups[k]
+		if !ok {
+			gv = &groupVal{route: route}
+			groups[k] = gv
+			order = append(order, k)
+		}
+		gv.departures = append(gv.departures, st.DepartureTime)
+	}
+
+	var result []DayRoute
+	for _, k := range order {
+		gv := groups[k]
+		route := gv.route
+		deps := gv.departures
+		sort.Ints(deps)
+
+		depStrings := make([]string, len(deps))
+		for i, sec := range deps {
+			depStrings[i] = secondsToHHMM(sec)
+		}
+
+		first, last := "", ""
+		if len(deps) > 0 {
+			first = secondsToHHMM(deps[0])
+			last = secondsToHHMM(deps[len(deps)-1])
+		}
+
+		result = append(result, DayRoute{
+			LineNumber:     route.ShortName,
+			LineName:       k.headsign,
+			RouteColor:     route.Color,
+			RouteTextColor: route.TextColor,
+			FareAmount:     route.FareAmount,
+			FirstDeparture: first,
+			LastDeparture:  last,
+			Departures:     depStrings,
+		})
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].LineNumber < result[j].LineNumber
+	})
+	return result
+}
+
+// ShapesForLine returns up to 2 shape point slices (directions A and B) for the given short name.
+func (d *Data) ShapesForLine(shortName string) [][]ShapePoint {
+	routeID, ok := d.RouteByShortName[shortName]
+	if !ok {
+		return nil
+	}
+
+	seen := make(map[string]bool)
+	var result [][]ShapePoint
+
+	for _, trip := range d.Trips {
+		if trip.RouteID != routeID || trip.ShapeID == "" {
+			continue
+		}
+		if seen[trip.ShapeID] {
+			continue
+		}
+		seen[trip.ShapeID] = true
+		if pts, ok2 := d.Shapes[trip.ShapeID]; ok2 {
+			result = append(result, pts)
+		}
+		if len(result) >= 2 {
+			break
+		}
+	}
+	return result
 }
 
 // activeServiceIDs returns a set of service_ids valid for the given time.
@@ -224,9 +438,13 @@ func loadRoutes(d *Data, path string) error {
 		if routeID == "" {
 			return
 		}
+		color := strings.ToUpper(col(row, header, "route_color"))
+		textColor := strings.ToUpper(col(row, header, "route_text_color"))
 		d.Routes[routeID] = &Route{
 			ShortName: col(row, header, "route_short_name"),
 			LongName:  col(row, header, "route_long_name"),
+			Color:     color,
+			TextColor: textColor,
 		}
 	})
 }
@@ -237,10 +455,19 @@ func loadTrips(d *Data, path string) error {
 		if tripID == "" {
 			return
 		}
+		routeID := col(row, header, "route_id")
+		shapeID := col(row, header, "shape_id")
 		d.Trips[tripID] = &Trip{
-			RouteID:   col(row, header, "route_id"),
+			RouteID:   routeID,
 			ServiceID: col(row, header, "service_id"),
 			Headsign:  col(row, header, "trip_headsign"),
+			ShapeID:   shapeID,
+		}
+		// Populate RouteByShortName using the already-loaded Routes map.
+		if route, ok := d.Routes[routeID]; ok {
+			if route.ShortName != "" {
+				d.RouteByShortName[route.ShortName] = routeID
+			}
 		}
 	})
 }
@@ -328,6 +555,89 @@ func loadStopTimes(d *Data, path string) error {
 	return nil
 }
 
+func loadFareAttributes(d *Data, path string) error {
+	return readCSV(path, func(header map[string]int, row []string) {
+		fareID := col(row, header, "fare_id")
+		priceStr := col(row, header, "price")
+		if fareID == "" || priceStr == "" {
+			return
+		}
+		price, err := strconv.ParseFloat(priceStr, 64)
+		if err != nil {
+			return
+		}
+		d.farePrice[fareID] = price
+	})
+}
+
+func loadFareRules(d *Data, path string) error {
+	return readCSV(path, func(header map[string]int, row []string) {
+		fareID := col(row, header, "fare_id")
+		routeID := col(row, header, "route_id")
+		if fareID == "" || routeID == "" {
+			return
+		}
+		if route, ok := d.Routes[routeID]; ok {
+			route.FareAmount = d.farePrice[fareID]
+		}
+	})
+}
+
+func loadShapes(d *Data, path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	r := csv.NewReader(bufio.NewReaderSize(f, 1<<20)) // 1MB buffer
+	r.ReuseRecord = true
+
+	headerRow, err := r.Read()
+	if err != nil {
+		return err
+	}
+	header := buildHeader(headerRow)
+
+	shapeIdx, hasShape := header["shape_id"]
+	latIdx, hasLat := header["shape_pt_lat"]
+	lonIdx, hasLon := header["shape_pt_lon"]
+	if !hasShape || !hasLat || !hasLon {
+		// shapes.txt missing required columns — skip silently
+		return nil
+	}
+
+	count := 0
+	for {
+		row, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if len(row) <= shapeIdx || len(row) <= latIdx || len(row) <= lonIdx {
+			continue
+		}
+		shapeID := strings.TrimSpace(row[shapeIdx])
+		latStr := strings.TrimSpace(row[latIdx])
+		lonStr := strings.TrimSpace(row[lonIdx])
+		if shapeID == "" {
+			continue
+		}
+		lat, err1 := strconv.ParseFloat(latStr, 64)
+		lon, err2 := strconv.ParseFloat(lonStr, 64)
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		// Shapes are already ordered in the file — no sort needed.
+		d.Shapes[shapeID] = append(d.Shapes[shapeID], ShapePoint{Lat: lat, Lon: lon})
+		count++
+	}
+	log.Printf("GTFS: loaded %d shape points across %d shapes", count, len(d.Shapes))
+	return nil
+}
+
 // --- Helpers ---
 
 func readCSV(path string, fn func(map[string]int, []string)) error {
@@ -390,4 +700,11 @@ func parseTime(s string) int {
 
 func timeToSeconds(t time.Time) int {
 	return t.Hour()*3600 + t.Minute()*60 + t.Second()
+}
+
+// secondsToHHMM formats seconds-since-midnight as "HH:MM", supporting times >= 24h (e.g. "24:35").
+func secondsToHHMM(sec int) string {
+	h := sec / 3600
+	m := (sec % 3600) / 60
+	return fmt.Sprintf("%02d:%02d", h, m)
 }

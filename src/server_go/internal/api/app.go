@@ -173,6 +173,11 @@ func (app *App) SetupRoutes(router *gin.Engine) {
 			stations.GET("/:city/search", app.HandleStationSearch)
 			stations.GET("/:city/all", app.HandleAllStations)
 		}
+		gtfsGroup := api.Group("/gtfs")
+		{
+			gtfsGroup.GET("/:city/schedule", app.HandleGTFSSchedule)
+			gtfsGroup.GET("/:city/shape", app.HandleGTFSShape)
+		}
 		api.GET("/transit-changes", app.HandleTransitChanges)
 		api.GET("/status", app.HandleStatus)
 	}

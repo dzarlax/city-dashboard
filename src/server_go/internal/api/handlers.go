@@ -293,6 +293,11 @@ func (app *App) GetAllStations(city string, lat, lon, rad float64) ([]models.Sta
 							GarageNo:        "",
 							Coords:          []string{},
 							Scheduled:       true,
+							RouteColor:      d.RouteColor,
+							RouteTextColor:  d.RouteTextColor,
+							FareAmount:      d.FareAmount,
+							FirstDeparture:  d.FirstDeparture,
+							LastDeparture:   d.LastDeparture,
 						})
 					}
 					station.Vehicles = vehicles
@@ -315,4 +320,56 @@ func (app *App) GetAllStations(city string, lat, lon, rad float64) ([]models.Sta
 
 	wg.Wait()
 	return results, nil
+}
+
+// HandleGTFSSchedule handles GET /api/gtfs/:city/schedule?stop_id=X
+// Returns full day schedule via gd.FullDaySchedule(stopID, time.Now())
+func (app *App) HandleGTFSSchedule(c *gin.Context) {
+	city := c.Param("city")
+	stopID := c.Query("stop_id")
+	if stopID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "stop_id required"})
+		return
+	}
+	app.mu.RLock()
+	gd := app.gtfsData[city]
+	app.mu.RUnlock()
+	if gd == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "no GTFS data for city"})
+		return
+	}
+	schedule := gd.FullDaySchedule(stopID, time.Now())
+	c.JSON(http.StatusOK, schedule)
+}
+
+// HandleGTFSShape handles GET /api/gtfs/:city/shape?line=X
+// Returns shape points for a line via gd.ShapesForLine(line)
+func (app *App) HandleGTFSShape(c *gin.Context) {
+	city := c.Param("city")
+	line := c.Query("line")
+	if line == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "line required"})
+		return
+	}
+	app.mu.RLock()
+	gd := app.gtfsData[city]
+	app.mu.RUnlock()
+	if gd == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "no GTFS data for city"})
+		return
+	}
+	shapes := gd.ShapesForLine(line)
+	// Convert to [[lat,lon],...] slices
+	type direction struct {
+		Points [][2]float64 `json:"points"`
+	}
+	dirs := make([]direction, 0, len(shapes))
+	for _, pts := range shapes {
+		d := direction{Points: make([][2]float64, len(pts))}
+		for i, p := range pts {
+			d.Points[i] = [2]float64{p.Lat, p.Lon}
+		}
+		dirs = append(dirs, d)
+	}
+	c.JSON(http.StatusOK, gin.H{"directions": dirs})
 }

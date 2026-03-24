@@ -30,4 +30,9 @@ type Vehicle struct {
 	GarageNo        string   `json:"garageNo"`
 	Coords          []string `json:"coords"`
 	Scheduled       bool     `json:"scheduled,omitempty"` // true when data comes from static GTFS schedule
+	RouteColor      string   `json:"routeColor,omitempty"`
+	RouteTextColor  string   `json:"routeTextColor,omitempty"`
+	FareAmount      float64  `json:"fareAmount,omitempty"`
+	FirstDeparture  string   `json:"firstDeparture,omitempty"`
+	LastDeparture   string   `json:"lastDeparture,omitempty"`
 }
