@@ -516,6 +516,7 @@ func loadStopTimes(d *Data, path string) error {
 
 	r := csv.NewReader(bufio.NewReaderSize(f, 1<<20)) // 1MB buffer
 	r.ReuseRecord = true
+	r.LazyQuotes = true
 
 	headerRow, err := r.Read()
 	if err != nil {
@@ -592,6 +593,7 @@ func loadShapes(d *Data, path string) error {
 
 	r := csv.NewReader(bufio.NewReaderSize(f, 1<<20)) // 1MB buffer
 	r.ReuseRecord = true
+	r.LazyQuotes = true
 
 	headerRow, err := r.Read()
 	if err != nil {
@@ -648,6 +650,7 @@ func readCSV(path string, fn func(map[string]int, []string)) error {
 	defer f.Close()
 
 	r := csv.NewReader(bufio.NewReader(f))
+	r.LazyQuotes = true
 	headerRow, err := r.Read()
 	if err != nil {
 		return err
