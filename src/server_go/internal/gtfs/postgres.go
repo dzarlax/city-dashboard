@@ -55,8 +55,7 @@ func (DBStore) CreateSchema(ctx context.Context, db *pgxpool.Pool) error {
 			stop_id           TEXT,
 			trip_id           TEXT,
 			departure_seconds INT,
-			stop_sequence     INT,
-			PRIMARY KEY (city, trip_id, stop_sequence)
+			stop_sequence     INT
 		)`,
 
 		`CREATE INDEX IF NOT EXISTS gtfs_stop_times_stop_idx
