@@ -69,10 +69,10 @@ const StationDetailModal = ({
       }
 
       const map = L.map(mapRef.current, {
-        zoomControl: false,
+        zoomControl: true,
         attributionControl: false,
         dragging: true,
-        scrollWheelZoom: false,
+        scrollWheelZoom: true,
       }).setView([lat, lon], 16);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -259,7 +259,7 @@ const StationDetailModal = ({
 
       {/* Modal */}
       <div
-        className="fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg z-[9999] bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh]"
+        className="fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[80vw] sm:max-w-[600px] lg:w-[50vw] lg:max-w-[900px] z-[9999] bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh]"
         role="dialog"
         aria-modal="true"
         aria-label={`Station ${name}`}
@@ -308,7 +308,7 @@ const StationDetailModal = ({
           {hasCoords && (
             <div
               ref={mapRef}
-              className="w-full h-48 sm:h-56 bg-gray-100 dark:bg-gray-900"
+              className="w-full h-[30vh] sm:h-[35vh] bg-gray-100 dark:bg-gray-900"
               style={{ minHeight: '192px' }}
             />
           )}
