@@ -137,13 +137,15 @@ const useTransitData = (userLocation, config, isTabVisible = true) => {
         }
       }));
 
-      // Update stations map
-      setStationsMap(newStationsData);
-
-      // Persist to sessionStorage for instant display on next page load
-      try {
-        sessionStorage.setItem(STOPS_SESSION_KEY, JSON.stringify([...newStationsData.values()]));
-      } catch {}
+      // Only trigger re-render if stations actually changed
+      setStationsMap(prev => {
+        if (!hasUpdates && newStationsData.size === prev.size) return prev;
+        // Persist to sessionStorage for instant display on next page load
+        try {
+          sessionStorage.setItem(STOPS_SESSION_KEY, JSON.stringify([...newStationsData.values()]));
+        } catch {}
+        return newStationsData;
+      });
 
       // Adaptive polling: back off if nothing changed, reset on change
       if (hasUpdates) {
@@ -160,8 +162,8 @@ const useTransitData = (userLocation, config, isTabVisible = true) => {
         }
       }
 
-      setLoading(false);
-      setError(null);
+      setLoading(prev => prev ? false : prev);
+      setError(prev => prev ? null : prev);
     } catch (err) {
       setError(err.message || 'Failed to load stations');
       setLoading(false);

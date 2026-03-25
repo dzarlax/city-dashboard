@@ -90,11 +90,10 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, co
             <div className="min-w-0 flex-1">
               <button
                 onClick={(e) => { e.stopPropagation(); setShowDetail(true); }}
-                className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight mb-1 inline-flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 hover:underline text-left"
-                title={`View station details`}
+                className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight mb-1 inline-flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 hover:underline text-left bg-transparent border-none cursor-pointer p-0"
               >
                 {name}
-                <MapPin className="w-3 h-3 opacity-50" />
+                <MapPin className="w-3 h-3 opacity-40" />
               </button>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
