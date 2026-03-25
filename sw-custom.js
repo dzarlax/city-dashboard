@@ -1,5 +1,5 @@
 // Custom Service Worker для City Dashboard PWA
-const CACHE_NAME = 'city-dashboard-mn5uhpp8';
+const CACHE_NAME = 'city-dashboard-mn5wmyda';
 
 // Определяем SERVER_IP в зависимости от окружения
 const SERVER_IP = (() => {
