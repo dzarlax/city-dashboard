@@ -86,6 +86,10 @@ func main() {
 	}
 	gtfsSources := []gtfsSource{
 		{"bg", os.Getenv("GTFS_BG_URL"), os.Getenv("GTFS_BG_DIR")},
+		{"nis", os.Getenv("GTFS_NIS_URL"), os.Getenv("GTFS_NIS_DIR")},
+		{"kg", os.Getenv("GTFS_KG_URL"), os.Getenv("GTFS_KG_DIR")},
+		{"su", os.Getenv("GTFS_SU_URL"), os.Getenv("GTFS_SU_DIR")},
+		{"ue", os.Getenv("GTFS_UE_URL"), os.Getenv("GTFS_UE_DIR")},
 	}
 	for _, src := range gtfsSources {
 		if src.url != "" {

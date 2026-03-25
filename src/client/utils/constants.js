@@ -24,7 +24,7 @@ export const MAX_ARRIVALS_PER_ROUTE = 5;
 export const DEFAULT_SEARCH_RADIUS = 500; // meters
 
 // Cities
-export const CITIES = ['bg', 'ns', 'nis'];
+export const CITIES = ['bg', 'ns', 'nis', 'kg', 'su', 'ue'];
 
 // City display names and colors
 export const CITY_INFO = {
@@ -39,6 +39,18 @@ export const CITY_INFO = {
   NIS: {
     name: 'Niš',
     badge: 'bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-200 dark:border-violet-700'
+  },
+  KG: {
+    name: 'Kragujevac',
+    badge: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-200 dark:border-rose-700'
+  },
+  SU: {
+    name: 'Subotica',
+    badge: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-200 dark:border-amber-700'
+  },
+  UE: {
+    name: 'Užice',
+    badge: 'bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-900/30 dark:text-teal-200 dark:border-teal-700'
   }
 };
 

@@ -70,12 +70,19 @@ func (app *App) PopulateMap(force bool) error {
 	// Step 2: Enrich with live API stations.
 	// Try DB cache first, fall back to live API, then persist to DB.
 	for city, apiKey := range app.apiKeys {
-		liveStations := app.loadLiveStationsFromDB(city)
+		// Try fresh DB cache → Live API → stale DB cache as last resort
+		liveStations := app.loadLiveStationsFromDB(city, false)
 
 		if liveStations == nil {
 			liveStations = app.fetchLiveStationsFromAPI(city, apiKey)
 			if liveStations != nil {
 				app.saveLiveStationsToDB(city, liveStations)
+			} else {
+				// API failed — try stale DB data (better than nothing)
+				liveStations = app.loadLiveStationsFromDB(city, true)
+				if liveStations != nil {
+					log.Printf("PopulateMap: using stale DB cache for %q (API unavailable)", city)
+				}
 			}
 		}
 
@@ -95,8 +102,9 @@ func (app *App) PopulateMap(force bool) error {
 }
 
 // loadLiveStationsFromDB tries to load cached live stations from the database.
-// Returns nil if DB is not available or data is stale.
-func (app *App) loadLiveStationsFromDB(city string) []gtfs.LiveStation {
+// If allowStale is false, returns nil when data is older than liveStationsMaxAge.
+// If allowStale is true, returns any cached data regardless of age.
+func (app *App) loadLiveStationsFromDB(city string, allowStale bool) []gtfs.LiveStation {
 	app.mu.RLock()
 	db := app.db
 	app.mu.RUnlock()
@@ -108,7 +116,7 @@ func (app *App) loadLiveStationsFromDB(city string) []gtfs.LiveStation {
 	var store gtfs.DBStore
 	ctx := context.Background()
 
-	if !store.AreLiveStationsFresh(ctx, db, city, liveStationsMaxAge) {
+	if !allowStale && !store.AreLiveStationsFresh(ctx, db, city, liveStationsMaxAge) {
 		return nil
 	}
 
@@ -122,7 +130,7 @@ func (app *App) loadLiveStationsFromDB(city string) []gtfs.LiveStation {
 		return nil
 	}
 
-	log.Printf("PopulateMap: loaded %d live stations from DB for %q", len(stations), city)
+	log.Printf("PopulateMap: loaded %d live stations from DB for %q (stale=%v)", len(stations), city, allowStale)
 	return stations
 }
 

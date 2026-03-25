@@ -239,8 +239,8 @@ func (app *App) GetAllStations(city string, lat, lon, rad float64) ([]models.Sta
 	cityStations, exists := app.allStations[city]
 	app.mu.RUnlock()
 
-	if !exists {
-		return nil, fmt.Errorf("stations for city %s not populated", city)
+	if !exists || len(cityStations) == 0 {
+		return []models.Station{}, nil
 	}
 
 	var nearbyStations []models.Station

@@ -90,47 +90,51 @@ const useTransitData = (userLocation, config, isTabVisible = true) => {
       const newStationsData = new Map();
 
       await Promise.all(CITIES.map(async city => {
-        const params = new URLSearchParams({
-          lat: userLocation.lat,
-          lon: userLocation.lon,
-          rad: config.searchRad,
-        });
+        try {
+          const params = new URLSearchParams({
+            lat: userLocation.lat,
+            lon: userLocation.lon,
+            rad: config.searchRad,
+          });
 
-        const response = await fetchWithRetry(async () => {
-          const res = await fetch(
-            `${SERVER_URL}/api/stations/${city}/all?${params.toString()}`
-          );
-          if (!res.ok) {
-            throw new Error(`Failed to fetch stations for ${city.toUpperCase()}`);
-          }
-          return res;
-        });
+          const response = await fetchWithRetry(async () => {
+            const res = await fetch(
+              `${SERVER_URL}/api/stations/${city}/all?${params.toString()}`
+            );
+            if (!res.ok) {
+              throw new Error(`Failed to fetch stations for ${city.toUpperCase()}`);
+            }
+            return res;
+          });
 
-        const data = await response.json();
+          const data = await response.json();
 
-        data.forEach(station => {
-          const stationKey = createStationKey(station.stopId, city);
-          const processedStation = {
-            ...station,
-            distance: `${Math.round(station.distance)}m`,
-            city: city.toUpperCase(),
-          };
+          data.forEach(station => {
+            const stationKey = createStationKey(station.stopId, city);
+            const processedStation = {
+              ...station,
+              distance: `${Math.round(station.distance)}m`,
+              city: city.toUpperCase(),
+            };
 
-          // Check if vehicles have changed
-          const prevVehiclesForStation = previousVehicles.current.get(stationKey) || [];
-          const vehiclesChanged = !prevVehiclesForStation.length ||
-            processedStation.vehicles.some((vehicle, idx) => {
-              const prevVehicle = prevVehiclesForStation[idx];
-              return !prevVehicle || isVehicleChanged(prevVehicle, vehicle);
-            });
+            // Check if vehicles have changed
+            const prevVehiclesForStation = previousVehicles.current.get(stationKey) || [];
+            const vehiclesChanged = !prevVehiclesForStation.length ||
+              processedStation.vehicles.some((vehicle, idx) => {
+                const prevVehicle = prevVehiclesForStation[idx];
+                return !prevVehicle || isVehicleChanged(prevVehicle, vehicle);
+              });
 
-          if (vehiclesChanged) {
-            hasUpdates = true;
-            previousVehicles.current.set(stationKey, [...processedStation.vehicles]);
-          }
+            if (vehiclesChanged) {
+              hasUpdates = true;
+              previousVehicles.current.set(stationKey, [...processedStation.vehicles]);
+            }
 
-          newStationsData.set(stationKey, processedStation);
-        });
+            newStationsData.set(stationKey, processedStation);
+          });
+        } catch (err) {
+          console.warn(`Skipping ${city.toUpperCase()}: ${err.message}`);
+        }
       }));
 
       // Update stations map
