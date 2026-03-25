@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Maximize } from 'lucide-react';
 import { useLocalization } from '../utils/LocalizationContext';
 import { STORAGE_KEYS } from '../utils/constants';
@@ -16,7 +16,7 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
     setTempRadius(radius);
   }, [radius]);
 
-  const updatePosition = () => {
+  const updatePosition = useCallback(() => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       setPosition({
@@ -24,7 +24,12 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
         right: window.innerWidth - rect.right
       });
     }
-  };
+  }, []);
+
+  const close = useCallback(() => {
+    setIsOpen(false);
+    setTempRadius(radius);
+  }, [radius]);
 
   const toggleDropdown = () => {
     if (!isOpen) {
@@ -33,34 +38,37 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
     setIsOpen(!isOpen);
   };
 
-  // Close dropdown when clicking outside
+  // Close on click outside, scroll, resize, Escape
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (event) => {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target) &&
         !buttonRef.current.contains(event.target)
       ) {
-        setIsOpen(false);
-        setTempRadius(radius); // Reset temp radius
+        close();
       }
     };
 
-    const handleScroll = () => {
-      if (isOpen) {
-        setIsOpen(false);
-      }
+    const handleDismiss = () => close();
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') close();
     };
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      window.addEventListener('scroll', handleScroll, true);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-        window.removeEventListener('scroll', handleScroll, true);
-      };
-    }
-  }, [isOpen, radius]);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleDismiss, true);
+    window.addEventListener('resize', handleDismiss);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleDismiss, true);
+      window.removeEventListener('resize', handleDismiss);
+    };
+  }, [isOpen, close]);
 
   const handleRadiusChange = (newRadius) => {
     setTempRadius(newRadius);
@@ -96,7 +104,7 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
         <button
           onClick={toggleDropdown}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors shrink-0 whitespace-nowrap"
-          aria-label="Search radius"
+          aria-label={t('searchRadius')}
           aria-expanded={isOpen}
         >
           <Maximize className="w-4 h-4 shrink-0 text-gray-600 dark:text-gray-300" />
@@ -116,7 +124,7 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
               right: `${position.right}px`
             }}
           >
-            <div className="p-4">
+            <div className="px-3 py-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                   {t('searchRadius')}
@@ -127,12 +135,12 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
               </div>
 
               {/* Presets */}
-              <div className="grid grid-cols-5 gap-1 mb-4">
+              <div className="flex gap-1.5 mb-4">
                 {radiusOptions.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => handleRadiusChange(option.value)}
-                    className={`py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    className={`flex-1 min-w-0 py-1.5 px-1 text-xs font-medium rounded-md transition-colors text-center truncate ${
                       tempRadius === option.value
                         ? 'bg-primary-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
@@ -152,7 +160,7 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
                 value={tempRadius}
                 onChange={(e) => handleRadiusChange(parseInt(e.target.value))}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-primary-600"
-                aria-label="Custom search radius"
+                aria-label={t('searchRadius')}
               />
 
               {/* Buttons */}
@@ -161,13 +169,13 @@ const RadiusSlider = ({ radius, onRadiusChange }) => {
                   onClick={handleReset}
                   className="flex-1 px-3 py-2 text-xs font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors"
                 >
-                  Reset
+                  {t('reset')}
                 </button>
                 <button
                   onClick={handleApply}
                   className="flex-1 px-3 py-2 text-xs font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
                 >
-                  Apply
+                  {t('apply')}
                 </button>
               </div>
             </div>

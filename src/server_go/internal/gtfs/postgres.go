@@ -97,6 +97,22 @@ func (DBStore) CreateSchema(ctx context.Context, db *pgxpool.Pool) error {
 			city      TEXT PRIMARY KEY,
 			loaded_at TIMESTAMPTZ
 		)`,
+
+		// Live API station cache
+		`CREATE TABLE IF NOT EXISTS transit.live_stations (
+			city       TEXT,
+			station_id TEXT,
+			uid        INT,
+			name       TEXT,
+			lat        TEXT,
+			lon        TEXT,
+			PRIMARY KEY (city, station_id)
+		)`,
+
+		`CREATE TABLE IF NOT EXISTS transit.live_stations_metadata (
+			city      TEXT PRIMARY KEY,
+			loaded_at TIMESTAMPTZ
+		)`,
 	}
 
 	for _, stmt := range statements {
@@ -471,6 +487,101 @@ func (DBStore) LoadFromDB(ctx context.Context, db *pgxpool.Pool, city string) (*
 	log.Printf("GTFS DB: load complete for city %q — %d stops, %d trips, %d routes, %d shapes",
 		city, len(d.Stops), len(d.Trips), len(d.Routes), len(d.Shapes))
 	return d, nil
+}
+
+// LiveStation represents a cached station from the live API.
+type LiveStation struct {
+	City      string
+	StationID string
+	UID       int
+	Name      string
+	Lat       string
+	Lon       string
+}
+
+// SaveLiveStations saves live API station data to the database for a city.
+func (DBStore) SaveLiveStations(ctx context.Context, db *pgxpool.Pool, city string, stations []LiveStation) error {
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	if _, err := tx.Exec(ctx, "DELETE FROM transit.live_stations WHERE city = $1", city); err != nil {
+		return fmt.Errorf("delete live_stations: %w", err)
+	}
+
+	rows := make([][]interface{}, 0, len(stations))
+	for _, s := range stations {
+		rows = append(rows, []interface{}{city, s.StationID, s.UID, s.Name, s.Lat, s.Lon})
+	}
+
+	n, err := tx.CopyFrom(ctx,
+		pgx.Identifier{"transit", "live_stations"},
+		[]string{"city", "station_id", "uid", "name", "lat", "lon"},
+		pgx.CopyFromRows(rows),
+	)
+	if err != nil {
+		return fmt.Errorf("copy live_stations: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+
+	_, err = db.Exec(ctx,
+		`INSERT INTO transit.live_stations_metadata (city, loaded_at)
+		 VALUES ($1, NOW())
+		 ON CONFLICT (city) DO UPDATE SET loaded_at = NOW()`,
+		city,
+	)
+	if err != nil {
+		return fmt.Errorf("update live_stations_metadata: %w", err)
+	}
+
+	log.Printf("LiveStations DB: saved %d stations for %q", n, city)
+	return nil
+}
+
+// LoadLiveStations loads cached live API stations from the database.
+func (DBStore) LoadLiveStations(ctx context.Context, db *pgxpool.Pool, city string) ([]LiveStation, error) {
+	rows, err := db.Query(ctx,
+		`SELECT station_id, uid, name, lat, lon FROM transit.live_stations WHERE city = $1`, city)
+	if err != nil {
+		return nil, fmt.Errorf("query live_stations: %w", err)
+	}
+	defer rows.Close()
+
+	var result []LiveStation
+	for rows.Next() {
+		var s LiveStation
+		s.City = city
+		if err := rows.Scan(&s.StationID, &s.UID, &s.Name, &s.Lat, &s.Lon); err != nil {
+			return nil, fmt.Errorf("scan live_station: %w", err)
+		}
+		result = append(result, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("live_stations rows err: %w", err)
+	}
+
+	log.Printf("LiveStations DB: loaded %d stations for %q", len(result), city)
+	return result, nil
+}
+
+// AreLiveStationsFresh returns true if live station data for city is < maxAge old.
+func (DBStore) AreLiveStationsFresh(ctx context.Context, db *pgxpool.Pool, city string, maxAge time.Duration) bool {
+	var loadedAt time.Time
+	err := db.QueryRow(ctx,
+		`SELECT loaded_at FROM transit.live_stations_metadata WHERE city = $1`, city,
+	).Scan(&loadedAt)
+	if err != nil {
+		return false
+	}
+	age := time.Since(loadedAt)
+	fresh := age < maxAge
+	log.Printf("LiveStations DB: %q loaded_at=%s age=%s fresh=%v", city, loadedAt.Format(time.RFC3339), age.Round(time.Second), fresh)
+	return fresh
 }
 
 // IsDataFresh returns true if the city's GTFS data was loaded within maxAge.

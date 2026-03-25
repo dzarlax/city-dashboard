@@ -105,50 +105,72 @@ class GeolocationManager {
       throw new Error(`Geolocation unavailable: ${availability.reason}`);
     }
 
-    return new Promise((resolve, reject) => {
-      const options = {
-        enableHighAccuracy: true,
-        timeout: 15000, // 15 секунд timeout
-        maximumAge: 60000 // Кэш на 1 минуту
-      };
+    // Попытки: high accuracy → low accuracy → cached position → error
+    const attempts = [
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 120000 },
+    ];
 
+    for (const options of attempts) {
+      try {
+        const pos = await this._requestPosition(options);
+        this.notifyPositionCallbacks(pos);
+        return pos;
+      } catch (error) {
+        // POSITION_UNAVAILABLE (code 2) — transient on iOS (kCLErrorLocationUnknown),
+        // retry with lower accuracy before giving up.
+        if (error.code === 2) {
+          console.warn('Geolocation attempt failed (POSITION_UNAVAILABLE), retrying...', options);
+          continue;
+        }
+        // For other errors (PERMISSION_DENIED, TIMEOUT) — no point retrying
+        return this._handleGetPositionError(error);
+      }
+    }
+
+    // All attempts exhausted — try cached position, then fail
+    return this._handleGetPositionError({ code: 2, message: 'Position unavailable after retries' });
+  }
+
+  // Internal: single geolocation request as a Promise
+  _requestPosition(options) {
+    return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const pos = {
+          resolve({
             lat: position.coords.latitude,
             lon: position.coords.longitude,
             accuracy: position.coords.accuracy,
             timestamp: position.timestamp
-          };
-          
-          this.notifyPositionCallbacks(pos);
-          resolve(pos);
+          });
         },
-        (error) => {
-          console.warn('Geolocation error:', error);
-          
-          // Если есть последняя известная позиция, используем её
-          if (this.lastKnownPosition) {
-            const age = Date.now() - this.lastKnownPosition.timestamp;
-            // Используем если позиция не старше 10 минут
-            if (age < 10 * 60 * 1000) {
-              const pos = {
-                lat: this.lastKnownPosition.lat,
-                lon: this.lastKnownPosition.lon,
-                isStale: true
-              };
-              this.notifyPositionCallbacks(pos);
-              resolve(pos);
-              return;
-            }
-          }
-          
-          this.notifyErrorCallbacks(error);
-          reject(error);
-        },
+        reject,
         options
       );
     });
+  }
+
+  // Internal: handle final error after all retries exhausted
+  _handleGetPositionError(error) {
+    console.warn('Geolocation error:', error);
+
+    // Если есть последняя известная позиция, используем её
+    if (this.lastKnownPosition) {
+      const age = Date.now() - this.lastKnownPosition.timestamp;
+      // Используем если позиция не старше 10 минут
+      if (age < 10 * 60 * 1000) {
+        const pos = {
+          lat: this.lastKnownPosition.lat,
+          lon: this.lastKnownPosition.lon,
+          isStale: true
+        };
+        this.notifyPositionCallbacks(pos);
+        return pos;
+      }
+    }
+
+    this.notifyErrorCallbacks(error);
+    throw error;
   }
 
   // Начало отслеживания позиции для PWA и мобильных
@@ -178,11 +200,18 @@ class GeolocationManager {
         }
       },
       (error) => {
+        // POSITION_UNAVAILABLE (code 2) is transient on iOS (kCLErrorLocationUnknown).
+        // watchPosition will automatically retry, so just log and wait.
+        if (error.code === 2) {
+          console.debug('Watch: transient POSITION_UNAVAILABLE, waiting for next fix...');
+          return;
+        }
+
         console.warn('Watch position error:', error);
         this.notifyErrorCallbacks(error);
-        
-        // При ошибке можем попробовать перезапустить отслеживание
-        if (error.code === error.TIMEOUT) {
+
+        // При таймауте перезапускаем отслеживание
+        if (error.code === 3) {
           setTimeout(() => {
             if (this.isWatching) {
               this.stopWatching();

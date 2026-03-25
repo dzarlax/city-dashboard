@@ -69,6 +69,10 @@ const translations = {
     routeLoadError: 'Failed to load route',
 
     scheduledModeNotice: 'showing scheduled data (live API unavailable)',
+
+    // Radius / common actions
+    reset: 'Reset',
+    apply: 'Apply',
   },
 
   ru: {
@@ -136,6 +140,10 @@ const translations = {
     routeLoadError: 'Ошибка загрузки маршрута',
 
     scheduledModeNotice: 'показывает расписание (live-данные недоступны)',
+
+    // Radius / common actions
+    reset: 'Сброс',
+    apply: 'Применить',
   },
 
   sr: {
@@ -203,6 +211,10 @@ const translations = {
     routeLoadError: 'Greška pri učitavanju rute',
 
     scheduledModeNotice: 'prikazuje raspored (live podaci nisu dostupni)',
+
+    // Radius / common actions
+    reset: 'Resetuj',
+    apply: 'Primeni',
   }
 };
 

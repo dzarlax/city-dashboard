@@ -5,6 +5,7 @@ import { formatMinutes, isVehicleChanged, getStationUrl, getLineUrl, getLineTool
 import { CITY_INFO, NOW_ARRIVAL_THRESHOLD, UPCOMING_ARRIVAL_THRESHOLD, MAX_ARRIVALS_PER_ROUTE } from '../utils/constants';
 import ScheduleModal from './ScheduleModal';
 import RouteMapSVG from './RouteMapSVG';
+import StationDetailModal from './StationDetailModal';
 
 const TRANSPORT_ICON = {
   'трамвај':      TramFront,
@@ -16,11 +17,12 @@ const TRANSPORT_ICON = {
   'минибус':      Bus,
 };
 
-const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, isFavorite, onToggleFavorite }) => {
+const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, coords, isFavorite, onToggleFavorite }) => {
   const { t } = useLocalization();
   const [expandedRoutes, setExpandedRoutes] = useState({});
   const [scheduleModal, setScheduleModal] = useState(null); // { lineNumber, lineName, routeColor, routeTextColor }
   const [mapModal, setMapModal] = useState(null); // { lineNumber, lineName, routeColor }
+  const [showDetail, setShowDetail] = useState(false);
 
   const toggleRouteDetails = (lineNumber) => {
     setExpandedRoutes(prev => ({
@@ -28,9 +30,6 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
       [lineNumber]: !prev[lineNumber]
     }));
   };
-
-  const stationUrl = useMemo(() => getStationUrl(stopId, name, city), [stopId, name, city]);
-  const hasStationUrl = stationUrl !== null;
 
   const groupedVehicles = useMemo(() => {
     return vehicles.reduce((acc, vehicle) => {
@@ -89,23 +88,14 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
               <Bus className="w-4 h-4 text-primary-600 dark:text-primary-400" />
             </div>
             <div className="min-w-0 flex-1">
-              {hasStationUrl ? (
-                <a
-                  href={stationUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight mb-1 inline-flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                  title={`View ${name} on BG Prevoz website`}
-                >
-                  {name}
-                  <ExternalLink className="w-3 h-3 opacity-50" />
-                </a>
-              ) : (
-                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight mb-1">
-                  {name}
-                </h3>
-              )}
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowDetail(true); }}
+                className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-tight mb-1 inline-flex items-center gap-1 hover:text-primary-600 dark:hover:text-primary-400 hover:underline text-left"
+                title={`View station details`}
+              >
+                {name}
+                <MapPin className="w-3 h-3 opacity-50" />
+              </button>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
                   #{stopId}
@@ -365,6 +355,22 @@ const BusStation = React.memo(({ name, distance, stopId, vehicles = [], city, is
           routeColor={mapModal.routeColor}
           stopLat={null}
           stopLon={null}
+        />
+      )}
+      {showDetail && (
+        <StationDetailModal
+          isOpen={showDetail}
+          onClose={() => setShowDetail(false)}
+          name={name}
+          stopId={stopId}
+          city={city}
+          distance={distance}
+          coords={coords}
+          vehicles={vehicles}
+          isFavorite={isFavorite}
+          onToggleFavorite={onToggleFavorite}
+          onOpenSchedule={(data) => { setShowDetail(false); setScheduleModal(data); }}
+          onOpenRouteMap={(data) => { setShowDetail(false); setMapModal(data); }}
         />
       )}
     </article>
