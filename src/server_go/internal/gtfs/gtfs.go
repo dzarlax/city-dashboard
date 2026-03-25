@@ -340,6 +340,69 @@ func (d *Data) FullDaySchedule(stopID string, t time.Time) []DayRoute {
 	return result
 }
 
+// StopDirection describes which direction of a route passes through a specific stop.
+type StopDirection struct {
+	LineNumber string       `json:"line_number"`
+	LineName   string       `json:"line_name"`
+	Headsign   string       `json:"headsign"`
+	ShapeID    string       `json:"shape_id"`
+	RouteColor string       `json:"route_color,omitempty"`
+	Points     []ShapePoint `json:"points,omitempty"`
+}
+
+// StopDirections returns the route shapes that pass through stopID,
+// filtered to only the direction(s) that actually serve this stop.
+func (d *Data) StopDirections(stopID string) []StopDirection {
+	times := d.StopTimes[stopID]
+	if len(times) == 0 {
+		return nil
+	}
+
+	// Collect unique (routeID, shapeID) pairs that serve this stop.
+	type routeShape struct {
+		routeID  string
+		shapeID  string
+		headsign string
+	}
+	seen := make(map[string]bool) // keyed by shapeID
+	var pairs []routeShape
+
+	for _, st := range times {
+		trip := d.Trips[st.TripID]
+		if trip == nil || trip.ShapeID == "" {
+			continue
+		}
+		if seen[trip.ShapeID] {
+			continue
+		}
+		seen[trip.ShapeID] = true
+		pairs = append(pairs, routeShape{
+			routeID:  trip.RouteID,
+			shapeID:  trip.ShapeID,
+			headsign: trip.Headsign,
+		})
+	}
+
+	var result []StopDirection
+	for _, p := range pairs {
+		route := d.Routes[p.routeID]
+		if route == nil {
+			continue
+		}
+		pts := d.Shapes[p.shapeID]
+		sd := StopDirection{
+			LineNumber: route.ShortName,
+			LineName:   route.LongName,
+			Headsign:   p.headsign,
+			ShapeID:    p.shapeID,
+			RouteColor: route.Color,
+			Points:     pts,
+		}
+		result = append(result, sd)
+	}
+	return result
+}
+
 // ShapesForLine returns up to 2 shape point slices (directions A and B) for the given short name.
 func (d *Data) ShapesForLine(shortName string) [][]ShapePoint {
 	routeID, ok := d.RouteByShortName[shortName]

@@ -373,3 +373,48 @@ func (app *App) HandleGTFSShape(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"directions": dirs})
 }
+
+// HandleStopDirections handles GET /api/gtfs/:city/stop-directions?stop_id=X
+// Returns only the route shapes/directions that actually serve this stop.
+func (app *App) HandleStopDirections(c *gin.Context) {
+	city := c.Param("city")
+	stopID := c.Query("stop_id")
+	if stopID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "stop_id required"})
+		return
+	}
+	app.mu.RLock()
+	gd := app.gtfsData[city]
+	app.mu.RUnlock()
+	if gd == nil {
+		c.JSON(http.StatusOK, gin.H{"routes": []interface{}{}})
+		return
+	}
+
+	dirs := gd.StopDirections(stopID)
+
+	type routeDir struct {
+		LineNumber string       `json:"line_number"`
+		LineName   string       `json:"line_name"`
+		Headsign   string       `json:"headsign"`
+		RouteColor string       `json:"route_color,omitempty"`
+		Points     [][2]float64 `json:"points"`
+	}
+
+	result := make([]routeDir, 0, len(dirs))
+	for _, d := range dirs {
+		pts := make([][2]float64, len(d.Points))
+		for i, p := range d.Points {
+			pts[i] = [2]float64{p.Lat, p.Lon}
+		}
+		result = append(result, routeDir{
+			LineNumber: d.LineNumber,
+			LineName:   d.LineName,
+			Headsign:   d.Headsign,
+			RouteColor: d.RouteColor,
+			Points:     pts,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"routes": result})
+}

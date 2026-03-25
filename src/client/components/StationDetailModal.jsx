@@ -81,76 +81,59 @@ const StationDetailModal = ({
 
       mapInstanceRef.current = map;
 
-      // Fetch route shapes for all unique lines at this station
-      const uniqueLines = [...new Set(vehicles.map(v => v.lineNumber).filter(Boolean))];
+      // Fetch direction-aware routes for this specific stop (single request)
       const cityLower = city.toLowerCase();
-
-      const shapePromises = uniqueLines.map(async (line, idx) => {
-        try {
-          const res = await fetch(`${SERVER_URL}/api/gtfs/${cityLower}/shape?line=${line}`);
-          if (!res.ok) return null;
+      let routes = [];
+      try {
+        const res = await fetch(`${SERVER_URL}/api/gtfs/${cityLower}/stop-directions?stop_id=${stopId}`);
+        if (res.ok) {
           const json = await res.json();
-          const vehicle = vehicles.find(v => v.lineNumber === line);
-          return { line, data: json, color: vehicle?.routeColor, idx };
-        } catch {
-          return null;
+          routes = json.routes ?? [];
         }
-      });
-
-      const shapes = (await Promise.all(shapePromises)).filter(Boolean);
+      } catch {}
 
       if (cancelled) return;
 
-      // Draw route polylines — trimmed from station to end of each direction
+      // Draw route polylines — each route is already the correct direction for this stop
       const allBounds = [[lat, lon]];
-      shapes.forEach(({ line, data: shapeData, color, idx }) => {
-        const lineColor = color && color.length === 6
-          ? `#${color}`
+      routes.forEach((route, idx) => {
+        const lineColor = route.route_color && route.route_color.length === 6
+          ? `#${route.route_color}`
           : ROUTE_COLORS[idx % ROUTE_COLORS.length];
 
-        // Try to extract terminus names from lineName (format: "Start - End")
-        const vehicle = vehicles.find(v => v.lineNumber === line);
-        const lineParts = (vehicle?.lineName || '').split(' - ').map(s => s.trim());
+        const rawPts = (route.points ?? []).map(([lt, ln]) => [lt, ln]);
+        // Trim from station to end of route (only show where you can go)
+        const pts = trimFromStation(rawPts, lat, lon);
+        if (pts.length < 2) return;
 
-        const dirs = shapeData?.directions ?? [];
-        dirs.forEach((dir, dirIdx) => {
-          const rawPts = (dir.points ?? []).map(([lt, ln]) => [lt, ln]);
-          // Trim: only show the part from this station onwards
-          const pts = trimFromStation(rawPts, lat, lon);
-          if (pts.length < 2) return;
+        const poly = L.polyline(pts, {
+          color: lineColor,
+          weight: 4,
+          opacity: 0.8,
+          lineCap: 'round',
+        }).addTo(map);
+        poly.bindTooltip(route.line_number, { sticky: true, className: 'leaflet-tooltip-route' });
 
-          const poly = L.polyline(pts, {
-            color: lineColor,
-            weight: 4,
-            opacity: 0.8,
-            lineCap: 'round',
-          }).addTo(map);
-          poly.bindTooltip(line, { sticky: true, className: 'leaflet-tooltip-route' });
+        // Terminus marker with headsign
+        const lastPt = pts[pts.length - 1];
+        const terminusLabel = route.headsign || route.line_number;
 
-          // Terminus marker at the end of trimmed route
-          const lastPt = pts[pts.length - 1];
-          // Pick terminus label: dir 0 → last part of name, dir 1 → first part
-          const terminusLabel = dirIdx === 0
-            ? (lineParts[lineParts.length - 1] || line)
-            : (lineParts[0] || line);
-
-          const endIcon = L.divIcon({
-            html: `<div style="
-              display: flex; align-items: center; gap: 3px;
-              background: ${lineColor}; color: white;
-              padding: 2px 6px; border-radius: 10px;
-              border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-              font-size: 10px; font-weight: 700; white-space: nowrap;
-              max-width: 140px; overflow: hidden; text-overflow: ellipsis;
-            "><span>${line}</span><span style="font-weight:400;opacity:0.9">${terminusLabel !== line ? terminusLabel : ''}</span></div>`,
-            className: '',
-            iconSize: null, // auto-size
-            iconAnchor: [0, 10],
-          });
-          L.marker(lastPt, { icon: endIcon }).addTo(map);
-
-          pts.forEach(p => allBounds.push(p));
+        const endIcon = L.divIcon({
+          html: `<div style="
+            display: flex; align-items: center; gap: 3px;
+            background: ${lineColor}; color: white;
+            padding: 2px 6px; border-radius: 10px;
+            border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            font-size: 10px; font-weight: 700; white-space: nowrap;
+            max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+          "><span>${route.line_number}</span><span style="font-weight:400;opacity:0.9">\u2192 ${terminusLabel}</span></div>`,
+          className: '',
+          iconSize: null,
+          iconAnchor: [0, 10],
         });
+        L.marker(lastPt, { icon: endIcon }).addTo(map);
+
+        pts.forEach(p => allBounds.push(p));
       });
 
       // Station marker — large and prominent, drawn last to be on top
@@ -204,7 +187,7 @@ const StationDetailModal = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [isOpen, coords, vehicles, city]);
+  }, [isOpen, coords, stopId, city]);
 
   // Escape to close
   useEffect(() => {
