@@ -65,17 +65,18 @@ func (app *App) HandleAllStations(c *gin.Context) {
 }
 
 func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, error) {
-	// Circuit breaker: skip live API entirely if city is disabled
-	if app.isAPIDisabled(city) {
-		return nil, ErrForbidden
-	}
-
 	uid, err := app.GetStationUID(city, query)
 	if err != nil {
 		return nil, err
 	}
 
 	stationID := query.Get("id")
+
+	// Circuit breaker: skip live API, fall back to GTFS
+	if app.isAPIDisabled(city) {
+		return app.gtfsFallbackStation(city, stationID, uid)
+	}
+
 	var station *models.Station
 	if cachedStation, found := app.cache.GetCachedStation(city, stationID); found {
 		station = cachedStation.(*models.Station)
@@ -417,4 +418,49 @@ func (app *App) HandleStopDirections(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"routes": result})
+}
+
+// gtfsFallbackStation builds a Station response from GTFS schedule data
+// when the live API is disabled by the circuit breaker.
+func (app *App) gtfsFallbackStation(city, stationID, uid string) (*models.Station, error) {
+	app.mu.RLock()
+	gd := app.gtfsData[city]
+	fallbackStation, fallbackExists := app.allStations[city][uid]
+	app.mu.RUnlock()
+
+	station := &models.Station{
+		UID:      utils.InterfaceToInt(uid),
+		ID:       stationID,
+		StopID:   stationID,
+		Vehicles: []models.Vehicle{},
+	}
+
+	if fallbackExists {
+		station.Name = fallbackStation.Name
+		station.Coords = fallbackStation.Coords
+	}
+
+	if gd != nil {
+		deps := gd.ScheduledArrivals(stationID, time.Now(), gtfsMaxArrivals)
+		vehicles := make([]models.Vehicle, 0, len(deps))
+		for _, d := range deps {
+			vehicles = append(vehicles, models.Vehicle{
+				LineNumber:      d.LineNumber,
+				LineName:        d.LineName,
+				SecondsLeft:     d.SecondsLeft,
+				StationsBetween: 0,
+				GarageNo:        "",
+				Coords:          []string{},
+				Scheduled:       true,
+				RouteColor:      d.RouteColor,
+				RouteTextColor:  d.RouteTextColor,
+				FareAmount:      d.FareAmount,
+				FirstDeparture:  d.FirstDeparture,
+				LastDeparture:   d.LastDeparture,
+			})
+		}
+		station.Vehicles = vehicles
+	}
+
+	return station, nil
 }
