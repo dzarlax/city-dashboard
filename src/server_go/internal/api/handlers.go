@@ -65,16 +65,20 @@ func (app *App) HandleAllStations(c *gin.Context) {
 }
 
 func (app *App) GetStationInfo(city string, query url.Values) (*models.Station, error) {
-	uid, err := app.GetStationUID(city, query)
-	if err != nil {
-		return nil, err
-	}
-
 	stationID := query.Get("id")
 
 	// Circuit breaker: skip live API, fall back to GTFS
 	if app.isAPIDisabled(city) {
+		uid, _ := app.GetStationUID(city, query)
+		if uid == "" {
+			uid = stationID // use stop ID directly for GTFS lookup
+		}
 		return app.gtfsFallbackStation(city, stationID, uid)
+	}
+
+	uid, err := app.GetStationUID(city, query)
+	if err != nil {
+		return nil, err
 	}
 
 	var station *models.Station
