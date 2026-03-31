@@ -23,8 +23,12 @@ COPY package*.json ./
 # Установите зависимости для запуска
 RUN npm install --production
 
+# GA injection entrypoint
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Указание портов
 EXPOSE 3001 3000
 
-# Запуск сервера и клиента
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["npx", "concurrently", "npm run start:client", "npm run start:server"]
