@@ -2,6 +2,7 @@ package gtfs
 
 import (
 	"bufio"
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // --- Data structures ---
@@ -86,12 +89,15 @@ type DayRoute struct {
 }
 
 // Data holds the fully loaded GTFS dataset.
+// When DB is set, StopTimes and Shapes are loaded lazily from PostgreSQL
+// instead of being kept in memory (saves ~600MB for 5 cities).
 type Data struct {
 	// stop_id -> Stop
 	Stops map[string]*Stop
 	// stop_code -> Stop  (for cross-referencing with legacy IDs)
 	StopsByCode map[string]*Stop
 	// stop_id -> []StopTime sorted by DepartureTime
+	// NOTE: only populated when DB is nil (file-only mode)
 	StopTimes map[string][]StopTime
 	// trip_id -> Trip
 	Trips map[string]*Trip
@@ -100,6 +106,7 @@ type Data struct {
 	// shortName -> routeID
 	RouteByShortName map[string]string
 	// shapeID -> ordered []ShapePoint
+	// NOTE: only populated when DB is nil (file-only mode)
 	Shapes map[string][]ShapePoint
 	// service_id -> calendar rule
 	calendar map[string]calendarRule
@@ -107,6 +114,67 @@ type Data struct {
 	calendarDates map[string][]calendarException
 	// fare_id -> price (unexported, used during load only)
 	farePrice map[string]float64
+
+	// DB-backed lazy loading (set after LoadFromDB or SaveToDB)
+	DB   *pgxpool.Pool // nil = file-only mode, all data in memory
+	City string        // city code for DB queries
+}
+
+// GetStopTimes returns stop times for a given stop, either from memory or DB.
+func (d *Data) GetStopTimes(stopID string) []StopTime {
+	// If no DB, use in-memory data
+	if d.DB == nil {
+		return d.StopTimes[stopID]
+	}
+
+	rows, err := d.DB.Query(context.Background(),
+		`SELECT trip_id, departure_seconds FROM transit.gtfs_stop_times
+		 WHERE city = $1 AND stop_id = $2
+		 ORDER BY departure_seconds`, d.City, stopID)
+	if err != nil {
+		log.Printf("GTFS DB query stop_times error: %v", err)
+		return d.StopTimes[stopID] // fallback to memory
+	}
+	defer rows.Close()
+
+	var times []StopTime
+	for rows.Next() {
+		var st StopTime
+		if err := rows.Scan(&st.TripID, &st.DepartureTime); err != nil {
+			log.Printf("GTFS DB scan stop_time error: %v", err)
+			continue
+		}
+		times = append(times, st)
+	}
+	return times
+}
+
+// GetShapePoints returns shape points for a given shape ID, either from memory or DB.
+func (d *Data) GetShapePoints(shapeID string) []ShapePoint {
+	if d.DB == nil {
+		return d.Shapes[shapeID]
+	}
+
+	rows, err := d.DB.Query(context.Background(),
+		`SELECT lat, lon FROM transit.gtfs_shapes
+		 WHERE city = $1 AND shape_id = $2
+		 ORDER BY sequence`, d.City, shapeID)
+	if err != nil {
+		log.Printf("GTFS DB query shapes error: %v", err)
+		return d.Shapes[shapeID]
+	}
+	defer rows.Close()
+
+	var pts []ShapePoint
+	for rows.Next() {
+		var pt ShapePoint
+		if err := rows.Scan(&pt.Lat, &pt.Lon); err != nil {
+			log.Printf("GTFS DB scan shape error: %v", err)
+			continue
+		}
+		pts = append(pts, pt)
+	}
+	return pts
 }
 
 // Load reads all GTFS files from dir and returns a populated Data.
@@ -172,7 +240,7 @@ func (d *Data) ScheduledArrivals(stopID string, t time.Time, maxResults int) []S
 	nowSec := timeToSeconds(t)
 	window := nowSec + 2*3600
 
-	times := d.StopTimes[stopID]
+	times := d.GetStopTimes(stopID)
 
 	// Group ALL active departures by (routeID+"|"+headsign) to compute first/last.
 	type groupKey struct {
@@ -268,7 +336,7 @@ func (d *Data) FullDaySchedule(stopID string, t time.Time) []DayRoute {
 		return nil
 	}
 
-	times := d.StopTimes[stopID]
+	times := d.GetStopTimes(stopID)
 
 	type groupKey struct {
 		routeID  string
@@ -353,7 +421,7 @@ type StopDirection struct {
 // StopDirections returns the route shapes that pass through stopID,
 // filtered to only the direction(s) that actually serve this stop.
 func (d *Data) StopDirections(stopID string) []StopDirection {
-	times := d.StopTimes[stopID]
+	times := d.GetStopTimes(stopID)
 	if len(times) == 0 {
 		return nil
 	}
@@ -389,7 +457,7 @@ func (d *Data) StopDirections(stopID string) []StopDirection {
 		if route == nil {
 			continue
 		}
-		pts := d.Shapes[p.shapeID]
+		pts := d.GetShapePoints(p.shapeID)
 		sd := StopDirection{
 			LineNumber: route.ShortName,
 			LineName:   route.LongName,
@@ -421,7 +489,7 @@ func (d *Data) ShapesForLine(shortName string) [][]ShapePoint {
 			continue
 		}
 		seen[trip.ShapeID] = true
-		if pts, ok2 := d.Shapes[trip.ShapeID]; ok2 {
+		if pts := d.GetShapePoints(trip.ShapeID); len(pts) > 0 {
 			result = append(result, pts)
 		}
 		if len(result) >= 2 {

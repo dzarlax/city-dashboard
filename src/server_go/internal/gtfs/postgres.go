@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -294,13 +293,20 @@ func (DBStore) SaveToDB(ctx context.Context, db *pgxpool.Pool, city string, d *D
 		return fmt.Errorf("update metadata: %w", err)
 	}
 
-	log.Printf("GTFS DB: save complete for city %q", city)
+	// Enable lazy DB queries and free in-memory StopTimes/Shapes
+	d.DB = db
+	d.City = city
+	d.StopTimes = nil
+	d.Shapes = nil
+
+	log.Printf("GTFS DB: save complete for city %q (StopTimes/Shapes freed from memory)", city)
 	return nil
 }
 
-// LoadFromDB reconstructs a full Data struct from the database for the given city.
+// LoadFromDB reconstructs a Data struct from the database for the given city.
+// StopTimes and Shapes are NOT loaded into memory — they are queried lazily via DB.
 func (DBStore) LoadFromDB(ctx context.Context, db *pgxpool.Pool, city string) (*Data, error) {
-	log.Printf("GTFS DB: loading city %q from database", city)
+	log.Printf("GTFS DB: loading city %q from database (lazy mode — StopTimes/Shapes via DB)", city)
 
 	d := &Data{
 		Stops:            make(map[string]*Stop),
@@ -313,6 +319,8 @@ func (DBStore) LoadFromDB(ctx context.Context, db *pgxpool.Pool, city string) (*
 		calendar:         make(map[string]calendarRule),
 		calendarDates:    make(map[string][]calendarException),
 		farePrice:        make(map[string]float64),
+		DB:               db,
+		City:             city,
 	}
 
 	// --- Stops ---
@@ -384,35 +392,14 @@ func (DBStore) LoadFromDB(ctx context.Context, db *pgxpool.Pool, city string) (*
 	}
 	log.Printf("GTFS DB: loaded %d trips", len(d.Trips))
 
-	// --- Stop times ---
-	rows, err = db.Query(ctx,
-		`SELECT stop_id, trip_id, departure_seconds FROM transit.gtfs_stop_times WHERE city = $1`, city)
+	// --- Stop times: lazy-loaded via DB queries (not kept in memory) ---
+	var totalST int
+	err = db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM transit.gtfs_stop_times WHERE city = $1`, city).Scan(&totalST)
 	if err != nil {
-		return nil, fmt.Errorf("query stop_times: %w", err)
+		log.Printf("GTFS DB: could not count stop_times: %v", err)
 	}
-	totalST := 0
-	for rows.Next() {
-		var stopID string
-		var st StopTime
-		if err := rows.Scan(&stopID, &st.TripID, &st.DepartureTime); err != nil {
-			rows.Close()
-			return nil, fmt.Errorf("scan stop_time: %w", err)
-		}
-		d.StopTimes[stopID] = append(d.StopTimes[stopID], st)
-		totalST++
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("stop_times rows err: %w", err)
-	}
-	// Sort by DepartureTime per stop (mirroring the Load() behaviour)
-	for stopID, times := range d.StopTimes {
-		sort.Slice(times, func(i, j int) bool {
-			return times[i].DepartureTime < times[j].DepartureTime
-		})
-		d.StopTimes[stopID] = times
-	}
-	log.Printf("GTFS DB: loaded %d stop_times across %d stops", totalST, len(d.StopTimes))
+	log.Printf("GTFS DB: %d stop_times available via DB (not loaded into memory)", totalST)
 
 	// --- Calendar ---
 	rows, err = db.Query(ctx,
@@ -461,31 +448,17 @@ func (DBStore) LoadFromDB(ctx context.Context, db *pgxpool.Pool, city string) (*
 		return nil, fmt.Errorf("calendar_dates rows err: %w", err)
 	}
 
-	// --- Shapes ---
-	rows, err = db.Query(ctx,
-		`SELECT shape_id, lat, lon FROM transit.gtfs_shapes WHERE city = $1 ORDER BY shape_id, sequence`, city)
+	// --- Shapes: lazy-loaded via DB queries (not kept in memory) ---
+	var totalPts int
+	err = db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM transit.gtfs_shapes WHERE city = $1`, city).Scan(&totalPts)
 	if err != nil {
-		return nil, fmt.Errorf("query shapes: %w", err)
+		log.Printf("GTFS DB: could not count shapes: %v", err)
 	}
-	totalPts := 0
-	for rows.Next() {
-		var shapeID string
-		var pt ShapePoint
-		if err := rows.Scan(&shapeID, &pt.Lat, &pt.Lon); err != nil {
-			rows.Close()
-			return nil, fmt.Errorf("scan shape: %w", err)
-		}
-		d.Shapes[shapeID] = append(d.Shapes[shapeID], pt)
-		totalPts++
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("shapes rows err: %w", err)
-	}
-	log.Printf("GTFS DB: loaded %d shape points across %d shapes", totalPts, len(d.Shapes))
+	log.Printf("GTFS DB: %d shape points available via DB (not loaded into memory)", totalPts)
 
-	log.Printf("GTFS DB: load complete for city %q — %d stops, %d trips, %d routes, %d shapes",
-		city, len(d.Stops), len(d.Trips), len(d.Routes), len(d.Shapes))
+	log.Printf("GTFS DB: load complete for city %q — %d stops, %d trips, %d routes (StopTimes+Shapes via DB)",
+		city, len(d.Stops), len(d.Trips), len(d.Routes))
 	return d, nil
 }
 
