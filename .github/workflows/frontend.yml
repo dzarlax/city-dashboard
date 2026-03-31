@@ -33,14 +33,19 @@ jobs:
           docker cp build-container:/app/dist ./dist
           docker rm build-container
 
-      # Шаг 3: Добавление CNAME файла
+      # Шаг 3: Inject GA measurement ID (if configured)
+      - name: Inject Google Analytics
+        if: vars.GA_MEASUREMENT_ID != ''
+        run: sed -i "s/__GA_MEASUREMENT_ID__/${{ vars.GA_MEASUREMENT_ID }}/g" ./dist/index.html
+
+      # Шаг 4: Добавление CNAME файла
       - name: Add CNAME file
         run: echo "transport.dzarlax.dev" > ./dist/CNAME
 
-      # Шаг 4: Деплой на GitHub Pages
+      # Шаг 5: Деплой на GitHub Pages
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          publish_branch: gh-pages # Указываем ветку для деплоя
+          publish_branch: gh-pages
