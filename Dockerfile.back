@@ -1,5 +1,5 @@
 # Stage 1: Build the Go server
-# FROM golang:1.20 AS server-builder
+# FROM golang:1.27.3-alpine AS server-builder
 # WORKDIR /app
 
 # # Copy Go module files and download dependencies
