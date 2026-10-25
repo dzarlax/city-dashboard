@@ -7,6 +7,7 @@
     "dev": "npm run client",
     "build:client": "vite build",
     "build:prod": "GITHUB_PAGES=true vite build --base=https://transport.dzarlax.dev/",
+    "test:weather": "node --experimental-strip-types --test src/client/weatherApi.test.mts",
     "build": "npm run build:client",
     "build:hacs": "HACS=true vite build --config vite.config.ha.js",
     "start": "npm run start:client",

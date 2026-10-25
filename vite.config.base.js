@@ -10,7 +10,7 @@ const swCacheVersionPlugin = () => ({
     const swPath = resolve('dist', 'sw-custom.js');
     if (!existsSync(swPath)) return;
     const hash = Date.now().toString(36);
-    const version = `city-dashboard-${hash}`;
+    const version = `city-dashboard-v2-${hash}`;
     let content = readFileSync(swPath, 'utf-8');
     content = content.replace('__SW_CACHE_VERSION__', version);
     writeFileSync(swPath, content);

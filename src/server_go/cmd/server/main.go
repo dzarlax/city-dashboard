@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -118,7 +119,27 @@ func main() {
 	router := gin.New()
 
 	// Add logging and recovery middleware
-	router.Use(gin.Logger())
+	router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		path := sanitizeWeatherLogPath(param.Path)
+		var statusColor, methodColor, resetColor string
+		if param.IsOutputColor() {
+			statusColor = param.StatusCodeColor()
+			methodColor = param.MethodColor()
+			resetColor = param.ResetColor()
+		}
+		if param.Latency > time.Minute {
+			param.Latency = param.Latency.Truncate(time.Second)
+		}
+		return fmt.Sprintf("[GIN] %v |%s %3d %s| %13v | %15s |%s %-7s %s %#v\n%s",
+			param.TimeStamp.Format("2006/01/02 - 15:04:05"),
+			statusColor, param.StatusCode, resetColor,
+			param.Latency,
+			param.ClientIP,
+			methodColor, param.Method, resetColor,
+			path,
+			param.ErrorMessage,
+		)
+	}))
 	router.Use(gin.Recovery())
 
 	// Configure CORS
@@ -181,4 +202,11 @@ func main() {
 	if err := router.Run(fmt.Sprintf(":%d", PORT)); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+func sanitizeWeatherLogPath(path string) string {
+	if strings.HasPrefix(path, "/api/weather/") {
+		return strings.SplitN(path, "?", 2)[0]
+	}
+	return path
 }

@@ -26,11 +26,6 @@ const STATIC_CACHE_URLS = [
   '/dash.svg'
 ];
 
-// API endpoints для кэширования (только стабильные данные)
-const API_CACHE_PATTERNS = [
-  new RegExp(`${SERVER_IP}/api/env`),
-];
-
 // Установка Service Worker
 self.addEventListener('install', (event) => {
   console.log('SW: Installing service worker');
@@ -93,14 +88,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Навигационные запросы - Network First для свежего index.html
-  if (request.mode === 'navigate') {
-    event.respondWith(networkFirstStrategy(request));
+  // Environment and weather responses are always network-only; never persist keys or weather data.
+  if (url.pathname === '/api/env' ||
+      url.pathname === '/api/weather/current' ||
+      url.pathname === '/api/weather/forecast' ||
+      (url.hostname === 'api.openweathermap.org' && url.pathname.startsWith('/data/2.5/'))) {
+    event.respondWith(fetch(request));
     return;
   }
 
-  // Стратегия для API запросов - Network First с fallback на Cache
-  if (API_CACHE_PATTERNS.some(pattern => pattern.test(request.url))) {
+  // Навигационные запросы - Network First для свежего index.html
+  if (request.mode === 'navigate') {
     event.respondWith(networkFirstStrategy(request));
     return;
   }

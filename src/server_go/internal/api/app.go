@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -39,6 +40,7 @@ type App struct {
 	gtfsData    map[string]*gtfs.Data // city -> GTFS dataset
 	circuits    map[string]*cityCircuit
 	db          *pgxpool.Pool // optional Postgres connection pool
+	weather     *weatherProxy
 	mapReady    bool
 	mu          sync.RWMutex
 }
@@ -51,6 +53,7 @@ func NewApp() *App {
 		allStations: make(map[string]map[string]models.Station),
 		gtfsData:    make(map[string]*gtfs.Data),
 		circuits:    make(map[string]*cityCircuit),
+		weather:     newWeatherProxy(os.Getenv("WEATHER_API_KEY"), http.DefaultTransport),
 	}
 }
 
@@ -232,6 +235,8 @@ func (app *App) SetupRoutes(router *gin.Engine) {
 		}
 		api.GET("/transit-changes", app.HandleTransitChanges)
 		api.GET("/status", app.HandleStatus)
+		api.GET("/weather/current", app.weather.handleCurrent)
+		api.GET("/weather/forecast", app.weather.handleForecast)
 	}
 }
 

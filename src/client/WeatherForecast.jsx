@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Cloud, CloudRain, Sun, CloudSnow } from 'lucide-react';
-
-const SERVER_IP = "https://transport-api.dzarlax.dev";
+import { getCurrentWeather, getWeatherForecast } from './weatherApi.mts';
 
 // Updated utility function for consistent time formatting
 const formatTime = (timestamp, isMobile = false) => {
@@ -57,48 +56,17 @@ const CompactWeatherForecast = ({ lat, lon }) => {
   const [forecast, setForecast] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [apiKey, setApiKey] = useState(null);
 
   useEffect(() => {
-    const fetchApiKey = async () => {
-      try {
-        const response = await fetch(`${SERVER_IP}/api/env`);
-        if (!response.ok) throw new Error('Failed to fetch API key');
-        const data = await response.json();
-        if (!data.env?.WEATHER_API_KEY) throw new Error('API key not found');
-        setApiKey(data.env.WEATHER_API_KEY);
-      } catch (err) {
-        console.error('Error fetching API key:', err);
-        setError('Failed to load weather data');
-      }
-    };
-    fetchApiKey();
-  }, []);
-
-  useEffect(() => {
-    if (!apiKey) return;
-
     const fetchWeather = async () => {
       try {
         setLoading(true);
-        
-        // Fetch current weather and forecast in parallel
         const [currentResponse, forecastResponse] = await Promise.all([
-          fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`),
-          fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&cnt=6&appid=${apiKey}`)
+          getCurrentWeather(lat, lon),
+          getWeatherForecast(lat, lon, 6),
         ]);
-
-        if (!currentResponse.ok || !forecastResponse.ok) {
-          throw new Error('Failed to fetch weather data');
-        }
-
-        const [currentData, forecastData] = await Promise.all([
-          currentResponse.json(),
-          forecastResponse.json()
-        ]);
-
-        setCurrentWeather(currentData);
-        setForecast(forecastData.list.slice(0, 6));
+        setCurrentWeather(currentResponse);
+        setForecast(forecastResponse.list.slice(0, 6));
         setError(null);
       } catch (err) {
         console.error('Error fetching weather:', err);
@@ -109,7 +77,7 @@ const CompactWeatherForecast = ({ lat, lon }) => {
     };
 
     fetchWeather();
-  }, [lat, lon, apiKey]);
+  }, [lat, lon]);
 
   if (loading) {
     return (
@@ -150,35 +118,13 @@ const WeatherForecast = ({ lat, lon }) => {
   const [forecast, setForecast] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [apiKey, setApiKey] = useState(null);
 
   useEffect(() => {
-    const fetchApiKey = async () => {
-      try {
-        const response = await fetch(`${SERVER_IP}/api/env`);
-        if (!response.ok) throw new Error('Failed to fetch API key');
-        const data = await response.json();
-        if (!data.env?.WEATHER_API_KEY) throw new Error('API key not found');
-        setApiKey(data.env.WEATHER_API_KEY);
-      } catch (err) {
-        console.error('Error fetching API key:', err);
-        setError('Failed to load weather data');
-      }
-    };
-    fetchApiKey();
-  }, []);
-
-  useEffect(() => {
-    if (!apiKey) return;
-
     const fetchForecast = async () => {
       try {
         setLoading(true);
-        const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&cnt=12&appid=${apiKey}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch forecast');
-        const data = await response.json();
-        setForecast(data.list.slice(0, 12));
+        const response = await getWeatherForecast(lat, lon, 12);
+        setForecast(response.list.slice(0, 12));
         setError(null);
       } catch (err) {
         console.error('Error fetching forecast:', err);
@@ -189,7 +135,7 @@ const WeatherForecast = ({ lat, lon }) => {
     };
 
     fetchForecast();
-  }, [lat, lon, apiKey]);
+  }, [lat, lon]);
 
   if (loading) {
     return (
