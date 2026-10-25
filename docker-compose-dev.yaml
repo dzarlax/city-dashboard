@@ -9,7 +9,7 @@
 
 services:
   backend:
-    image: golang:1.21-alpine
+    image: golang:1.27.3-alpine
     container_name: city_dashboard_dev_backend
     working_dir: /app
     volumes:
