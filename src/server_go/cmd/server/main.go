@@ -174,18 +174,7 @@ func main() {
 	})
 
 	// Endpoint for fetching environment variables
-	router.GET("/api/env", func(c *gin.Context) {
-		envVars := map[string]string{
-			"BELGRADE_LAT":    os.Getenv("BELGRADE_LAT"),
-			"BELGRADE_LON":    os.Getenv("BELGRADE_LON"),
-			"SEARCH_RAD":      os.Getenv("SEARCH_RAD"),
-			"WEATHER_API_KEY": os.Getenv("WEATHER_API_KEY"),
-		}
-
-		c.JSON(200, gin.H{
-			"env": envVars,
-		})
-	})
+	router.GET("/api/env", handlePublicEnvironment)
 
 	// Setup graceful shutdown
 	quit := make(chan os.Signal, 1)
@@ -209,4 +198,17 @@ func sanitizeWeatherLogPath(path string) string {
 		return strings.SplitN(path, "?", 2)[0]
 	}
 	return path
+}
+
+func handlePublicEnvironment(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	envVars := map[string]string{
+		"BELGRADE_LAT": os.Getenv("BELGRADE_LAT"),
+		"BELGRADE_LON": os.Getenv("BELGRADE_LON"),
+		"SEARCH_RAD":   os.Getenv("SEARCH_RAD"),
+	}
+
+	c.JSON(200, gin.H{
+		"env": envVars,
+	})
 }
